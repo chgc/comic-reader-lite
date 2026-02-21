@@ -142,3 +142,21 @@ func TestParseScriptGeneratedPages(t *testing.T) {
 		t.Fatalf("unexpected third page: %s", pages[2])
 	}
 }
+
+func TestParseScriptGeneratedPagesLayoutB(t *testing.T) {
+	// folder(93)=bP, chapter(1)=ab, pageCount(3)=ad, seed(40 chars), part=0
+	seed := "48m4SngA8" + strings.Repeat("x", 31)
+	record := "bPabad" + seed + "0"
+	payload := strings.Repeat(record, 5)
+	html := "<script>for (var i=0;i<5;i++){} var abc='" + payload + "';</script>"
+	pages, err := parseScriptGeneratedPages(html, "20133", "1")
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if len(pages) != 3 {
+		t.Fatalf("expected 3 pages, got %d", len(pages))
+	}
+	if pages[0] != "https://img9.8comic.com/3/20133/1/001_48m.jpg" {
+		t.Fatalf("unexpected first page: %s", pages[0])
+	}
+}

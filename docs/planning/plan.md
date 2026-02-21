@@ -161,3 +161,33 @@
 1. `plan-remove-frontend-source-options`：確認移除範圍與固定呼叫策略。
 2. `implement-remove-frontend-source-options`：調整 `app.component.ts` 與 `comic-provider.service.ts`。
 3. `validate-ui-simplification`：執行前端 build 並驗證主流程不變。
+
+---
+
+## 開發進度更新（截至目前）
+
+### 已完成
+- 後端（Go）已提供：
+  - `GET /api/comics/{comicId}/meta`
+  - `GET /api/comics/{comicId}/chapters`
+  - `GET /api/comics/{comicId}/chapters/{chapter}/pages`
+- `pages` 解析已支援第二項規則：可從章節頁 script 動態組圖邏輯還原全章圖片 URL。
+- `chapters` 解析已加入 fallback（連結掃描 / script `chs` / 章節範圍文字）。
+- `meta` 標題解析已修正：`comicId=20133` 可取得 `太散漫了,堀田老師!`。
+- 前端已簡化：
+  - 移除來源與可選覆寫欄位（固定 8comic 流程）。
+  - comic title 改由 metadata 自動取得，不需手動輸入。
+  - 按「閱讀」會以當前選定章節開啟，不覆蓋為舊進度章節。
+
+### 尚未完成項目
+1. `GET /api/comics/{comicId}/chapters/{chapter}/meta` 尚未實作（目前主要直接回 pages）。
+2. 章節標題目前部分情況仍使用「第 N 集」推導，尚未完整對齊來源標題。
+3. 來源解析失敗時的錯誤分類與診斷資訊仍可再細化。
+4. 缺少固定樣本的端對端回歸驗證流程（source 規則變動時預警不足）。
+
+### 可優化功能
+1. **章節標題準確率**：加入 script 變數與 DOM 雙路徑解析，提升標題品質。
+2. **可觀測性**：為 parser/fallback 加上結構化日誌與錯誤代碼。
+3. **前端容錯 UX**：章節或頁面載入失敗時，提供重試與明確操作提示。
+4. **驗證自動化**：建立 `comicId/ch` 樣本回歸測試，降低網站變更風險。
+5. **效能**：對已解析的 meta/chapters 進行短時快取，減少重複抓取。

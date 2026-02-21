@@ -66,6 +66,8 @@ var (
 	h2TitleRegex     = regexp.MustCompile(`(?is)<li[^>]*class=["'][^"']*\bh2\b[^"']*["'][^>]*>(.*?)</li>`)
 	l095Regex        = regexp.MustCompile(`var\s+l095_6\s*=\s*'([^']+)'`)
 	chsRegex         = regexp.MustCompile(`var\s+chs\s*=\s*(\d+)`)
+	payloadRegex     = regexp.MustCompile(`var\s+[A-Za-z0-9_]+\s*=\s*'([A-Za-z0-9]{200,})'`)
+	loopCountRegex   = regexp.MustCompile(`for\s*\(\s*var\s+[A-Za-z0-9_]+\s*=\s*0\s*;\s*[A-Za-z0-9_]+\s*<\s*(\d+)\s*;`)
 	trailingPart     = regexp.MustCompile(`[a-z]$`)
 )
 
@@ -237,19 +239,60 @@ func scrape8comicPages(r *http.Request, comicID, chapter string) ([]string, erro
 }
 
 func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) {
-	l095Match := l095Regex.FindStringSubmatch(html)
-	if len(l095Match) < 2 {
-		return nil, fmt.Errorf("script payload not found")
-	}
-	chsMatch := chsRegex.FindStringSubmatch(html)
-	if len(chsMatch) < 2 {
-		return nil, fmt.Errorf("chapter count not found")
-	}
-	totalChapters, err := strconv.Atoi(chsMatch[1])
-	if err != nil || totalChapters <= 0 {
-		return nil, fmt.Errorf("invalid chapter count")
+	payload, totalChapters, err := extractScriptPayloadAndCount(html)
+	if err != nil {
+		return nil, err
 	}
 
+	chRaw, selectedPart := normalizeChapterKey(chapter)
+	urls, err := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, 40, 42, 44, 0)
+	if err == nil && len(urls) > 0 {
+		return urls, nil
+	}
+	urls, err = parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, 2, 0, 4, 6)
+	if err == nil && len(urls) > 0 {
+		return urls, nil
+	}
+	return nil, fmt.Errorf("target chapter not found in payload")
+}
+
+func extractScriptPayloadAndCount(html string) (string, int, error) {
+	l095Match := l095Regex.FindStringSubmatch(html)
+	payload := ""
+	if len(l095Match) > 1 {
+		payload = l095Match[1]
+	}
+	if payload == "" {
+		m := payloadRegex.FindStringSubmatch(html)
+		if len(m) < 2 {
+			return "", 0, fmt.Errorf("script payload not found")
+		}
+		payload = m[1]
+	}
+
+	totalChapters := 0
+	if m := chsRegex.FindStringSubmatch(html); len(m) > 1 {
+		if n, convErr := strconv.Atoi(m[1]); convErr == nil && n > 0 {
+			totalChapters = n
+		}
+	}
+	if totalChapters == 0 {
+		if m := loopCountRegex.FindStringSubmatch(html); len(m) > 1 {
+			if n, convErr := strconv.Atoi(m[1]); convErr == nil && n > 0 {
+				totalChapters = n
+			}
+		}
+	}
+	if totalChapters == 0 {
+		totalChapters = len(payload) / 47
+	}
+	if totalChapters <= 0 {
+		return "", 0, fmt.Errorf("chapter count not found")
+	}
+	return payload, totalChapters, nil
+}
+
+func normalizeChapterKey(chapter string) (string, string) {
 	chRaw := chapter
 	if strings.Contains(chRaw, "-") {
 		chRaw = strings.SplitN(chRaw, "-", 2)[0]
@@ -263,8 +306,13 @@ func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) 
 	if chRaw == "" {
 		chRaw = "1"
 	}
+	return chRaw, part
+}
 
-	l095 := l095Match[1]
+func parsePagesByLayout(payload string, totalChapters int, chRaw string, part string, comicID string, chapterOffset int, folderOffset int, pageOffset int, seedOffset int) ([]string, error) {
+	if len(payload) < 47 {
+		return nil, fmt.Errorf("script payload not found")
+	}
 	var suffixSeed string
 	var folderCode string
 	var pageCount int
@@ -272,24 +320,24 @@ func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) 
 
 	for i := 0; i < totalChapters; i++ {
 		offset := i * 47
-		if offset+47 > len(l095) {
+		if offset+47 > len(payload) {
 			break
 		}
-		eb := sub(l095, offset, 40)
-		wom := lc(sub(l095, offset+40, 2))
-		f54 := lc(sub(l095, offset+42, 2))
-		ps := lc(sub(l095, offset+44, 2))
-		h := lc(sub(l095, offset+46, 1))
-		if wom == chRaw && (selectedPart == "" || selectedPart == h) {
-			if selectedPart == "" && h != "0" {
-				selectedPart = h
+		seed := lc(sub(payload, offset+seedOffset, 40))
+		chapterCode := lc(sub(payload, offset+chapterOffset, 2))
+		folder := lc(sub(payload, offset+folderOffset, 2))
+		pageCode := lc(sub(payload, offset+pageOffset, 2))
+		partCode := lc(sub(payload, offset+46, 1))
+		if chapterCode == chRaw && (selectedPart == "" || selectedPart == partCode) {
+			if selectedPart == "" && partCode != "0" {
+				selectedPart = partCode
 			}
-			n, convErr := strconv.Atoi(ps)
+			n, convErr := strconv.Atoi(pageCode)
 			if convErr != nil || n <= 0 {
 				return nil, fmt.Errorf("invalid page count")
 			}
-			suffixSeed = eb
-			folderCode = f54
+			suffixSeed = seed
+			folderCode = folder
 			pageCount = n
 			break
 		}
@@ -299,10 +347,10 @@ func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) 
 		return nil, fmt.Errorf("target chapter not found in payload")
 	}
 
-	imgPrefix := decodeTailMarker(l095, 4, "img")
-	domainPartA := decodeTailMarker(l095, 3, "com")
-	domainPartB := decodeTailMarker(l095, 2, "ic.")
-	ext := decodeTailMarker(l095, 1, "jpg")
+	imgPrefix := decodeTailMarker(payload, 4, "img")
+	domainPartA := decodeTailMarker(payload, 3, "com")
+	domainPartB := decodeTailMarker(payload, 2, "ic.")
+	ext := decodeTailMarker(payload, 1, "jpg")
 	host := fmt.Sprintf("%s%s.8%s%s%s", imgPrefix, folderCode[:1], domainPartA, domainPartB, domainPartA)
 	firstDir := folderCode[1:2]
 
