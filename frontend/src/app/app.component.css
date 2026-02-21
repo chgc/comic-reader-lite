@@ -1,0 +1,436 @@
+/* ── Layout ─────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Panel ──────────────────────────────────────────── */
+.panel {
+  background: #0f0f0f;
+  border-right: 1px solid #2e2e2e;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 8px;
+  flex-shrink: 0;
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.panel-close {
+  display: none; /* shown on mobile only */
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+/* ── Tabs ───────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #2e2e2e;
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  padding: 10px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tab-btn.active {
+  color: #f2f2f2;
+  border-bottom-color: #2f72ff;
+}
+
+.tab-badge {
+  background: #2f72ff;
+  color: white;
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.tab-content {
+  padding: 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Form ───────────────────────────────────────────── */
+.add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* ── Comic list ─────────────────────────────────────── */
+.empty-hint {
+  color: #666;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.comic-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.comic-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  border-radius: 6px;
+  padding: 4px;
+  transition: background 0.15s;
+}
+
+.comic-list li.active-comic {
+  background: #1a2a4a;
+}
+
+.comic-list li > button:first-child {
+  background: transparent;
+  border: none;
+  color: #f2f2f2;
+  text-align: left;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+}
+
+.comic-list li > button:first-child:hover {
+  background: #2a2a2a;
+}
+
+.comic-title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.comic-meta {
+  font-size: 12px;
+  color: #888;
+}
+
+/* ── No-comic placeholder ───────────────────────────── */
+.no-comic-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 14px;
+  padding: 40px;
+}
+
+/* ── Mobile panel toggle (floating) ────────────────── */
+.panel-toggle {
+  display: none; /* shown on mobile only */
+  position: fixed;
+  bottom: 20px;
+  left: 16px;
+  z-index: 150;
+  background: #2f72ff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── Panel backdrop (mobile) ────────────────────────── */
+.panel-backdrop {
+  display: none;
+}
+
+/* ── Reader shell ───────────────────────────────────── */
+.reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Reader sticky top (header + picker) ────────────── */
+.reader-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #151515;
+}
+
+/* ── Reader header ──────────────────────────────────── */
+.reader-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2e2e2e;
+  flex-wrap: wrap;
+}
+
+.mobile-menu-btn {
+  display: none; /* shown on mobile only */
+}
+
+.reader-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reader-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-tool {
+  background: #2a2a2a;
+  border: 1px solid #3b3b3b;
+  color: #f2f2f2;
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-tool:hover {
+  background: #3a3a3a;
+}
+
+/* ── Chapter quick-picker ───────────────────────────── */
+.chapter-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #111;
+  border-bottom: 1px solid #2e2e2e;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.picker-loading {
+  color: #888;
+  font-size: 13px;
+}
+
+.chapter-btn {
+  background: #2a2a2a;
+  border: 1px solid #3b3b3b;
+  color: #ccc;
+  padding: 4px 10px;
+  font-size: 13px;
+  min-width: 40px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chapter-btn.active {
+  background: #2f72ff;
+  border-color: #2f72ff;
+  color: white;
+}
+
+/* ── Loading / Error ────────────────────────────────── */
+.loading-indicator {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+}
+
+.error {
+  color: #ff7373;
+  padding: 8px 16px;
+}
+
+/* ── Scroll reader (continuous mode) ───────────────── */
+.scroll-reader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scroll-page-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 2/3;
+  margin-bottom: 4px;
+}
+
+.scroll-page-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+}
+
+.scroll-page-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* ── Chapter navigation bar ─────────────────────────── */
+.chapter-nav {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  border-top: 1px solid #2e2e2e;
+  margin-top: auto;
+}
+
+.chapter-nav-label {
+  min-width: 80px;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+}
+
+/* ── Mobile: drawer panel ───────────────────────────── */
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Panel becomes a fixed left drawer */
+  .panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 85vw;
+    max-width: 360px;
+    height: 100vh;
+    max-height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    border-right: 1px solid #3b3b3b;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+  }
+
+  .panel.open {
+    transform: translateX(0);
+  }
+
+  .panel-close {
+    display: block;
+  }
+
+  .panel-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 199;
+  }
+
+  .panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .reader-title {
+    font-size: 13px;
+  }
+
+  .scroll-page-wrap {
+    max-width: 100%;
+  }
+
+  .chapter-nav button {
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+}
+
+/* ── Desktop scroll: one image per viewport ─────────── */
+@media (min-width: 641px) {
+  .reader {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .scroll-reader {
+    flex: 1;
+    min-height: 0;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    align-items: stretch;
+  }
+
+  .scroll-page-wrap {
+    height: 100%;
+    flex-shrink: 0;
+    aspect-ratio: unset;
+    max-width: none;
+    margin-bottom: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .scroll-page-img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+

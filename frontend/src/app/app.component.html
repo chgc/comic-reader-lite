@@ -1,0 +1,138 @@
+<!-- Mobile floating button: only when no comic is open (reader header unavailable) -->
+@if (!currentComic()) {
+  <button class="panel-toggle" (click)="showPanel.set(true)" aria-label="開啟選單">☰</button>
+}
+
+<!-- Backdrop for mobile drawer -->
+@if (showPanel()) {
+  <div class="panel-backdrop" (click)="showPanel.set(false)"></div>
+}
+
+<main class="layout">
+  <!-- ── Left panel ──────────────────────────────────── -->
+  <section class="panel" [class.open]="showPanel()">
+    <div class="panel-header">
+      <h1>8comic 乾淨版</h1>
+      <button class="panel-close" (click)="showPanel.set(false)" aria-label="關閉">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn" [class.active]="activeTab() === 'add'" (click)="activeTab.set('add')">＋ 新增</button>
+      <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="activeTab.set('history')">
+        📚 歷史
+        @if (comics().length) {
+          <span class="tab-badge">{{ comics().length }}</span>
+        }
+      </button>
+    </div>
+
+    <!-- Tab: Add new comic -->
+    @if (activeTab() === 'add') {
+      <div class="tab-content">
+        <form class="add-form" (ngSubmit)="addComic()">
+          <input [(ngModel)]="newComicId" name="comicId" placeholder="漫畫 ID" required />
+          <button type="button" (click)="fetchDraftChapters()" [disabled]="!newComicId.trim()">取得章節</button>
+          @if (draftComicTitle()) {
+            <p>漫畫名稱：{{ draftComicTitle() }}</p>
+          }
+          <select [(ngModel)]="newChapter" name="chapter">
+            @for (c of draftChapters(); track c.id) {
+              <option [value]="c.id">{{ c.id }} - {{ c.title }}</option>
+            }
+          </select>
+          <button type="submit" [disabled]="!newComicId.trim() || !newChapter.trim()">閱讀</button>
+        </form>
+        @if (chapterError()) {
+          <p class="error">{{ chapterError() }}</p>
+        }
+      </div>
+    }
+
+    <!-- Tab: Reading history -->
+    @if (activeTab() === 'history') {
+      <div class="tab-content">
+        @if (comics().length === 0) {
+          <p class="empty-hint">尚無閱讀紀錄，切換到「新增」頁籤加入漫畫</p>
+        }
+        <ul class="comic-list">
+          @for (comic of comics(); track comic.id) {
+            <li [class.active-comic]="currentComic()?.id === comic.id">
+              <button (click)="openComic(comic)">
+                <span class="comic-title">{{ comic.title }}</span>
+                <span class="comic-meta"
+                  >ch{{ comic.chapter
+                  }}{{
+                    progressMap()[comic.id]?.pageIndex ? ' · 第' + (progressMap()[comic.id]!.pageIndex + 1) + '頁' : ''
+                  }}</span
+                >
+              </button>
+              <button class="danger" (click)="removeComic(comic.id)">移除</button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </section>
+
+  <!-- ── Reader ───────────────────────────────────────── -->
+  @if (currentComic()) {
+    <section class="reader">
+      <!-- Sticky top: header + chapter picker -->
+      <div class="reader-top">
+        <div class="reader-header">
+          <button class="btn-tool mobile-menu-btn" (click)="showPanel.set(true)" aria-label="選單">☰</button>
+          <h2 class="reader-title">{{ currentComic()!.title }} — 第 {{ currentChapter() }} 集</h2>
+          <div class="reader-toolbar">
+            <button class="btn-tool" (click)="toggleChapterPicker()">☰ 章節</button>
+          </div>
+        </div>
+
+        <!-- Chapter quick-picker -->
+        @if (showChapterPicker()) {
+          <div class="chapter-picker">
+            @if (comicChapters().length === 0) {
+              <span class="picker-loading">載入中…</span>
+            }
+            @for (c of comicChapters(); track c.id) {
+              <button class="chapter-btn" [class.active]="c.id === currentChapter()" (click)="jumpToChapter(c.id)">
+                {{ c.id }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+      @if (loading()) {
+        <div class="loading-indicator">載入中…</div>
+      }
+
+      @if (!loading() && pages().length > 0) {
+        <div class="scroll-reader" #scrollReader (scroll)="onScrollReaderScroll($event)">
+          @for (url of pages(); track $index) {
+            <div class="scroll-page-wrap">
+              @defer (on viewport) {
+                <img [src]="url" loading="lazy" [alt]="'第 ' + ($index + 1) + ' 頁'" class="scroll-page-img" />
+              } @placeholder {
+                <div class="scroll-page-placeholder"></div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <div class="chapter-nav">
+        <button (click)="prevChapter()" [disabled]="!hasPrevChapter()">← 上一章</button>
+        <span class="chapter-nav-label">第 {{ currentChapter() }} 集</span>
+        <button (click)="nextChapter()" [disabled]="!hasNextChapter()">下一章 →</button>
+      </div>
+    </section>
+  } @else {
+    <div class="no-comic-hint">
+      <p>從左側選取漫畫，或切換到「新增」頁籤加入新漫畫</p>
+    </div>
+  }
+</main>
