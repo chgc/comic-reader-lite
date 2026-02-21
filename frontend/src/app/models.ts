@@ -28,3 +28,18 @@ export interface ChaptersResponse {
   chapters: ChapterItem[];
 }
 
+export interface ComicMetaResponse {
+  comicId: string;
+  title?: string;
+  author?: string;
+  description?: string;
+  coverImageUrl?: string;
+  seriesStatus?: string;
+  chapterRange?: string;
+  updatedDate?: string;
+  category?: string;
+  ratingSummary?: string;
+  heatText?: string;
+  sourceUrl?: string;
+}
+

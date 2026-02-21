@@ -62,6 +62,8 @@ var (
 	categoryRegex    = regexp.MustCompile(`(?is)<a[^>]+href=["']/comic/\d+-\d+\.html["'][^>]*>(.*?)</a>`)
 	heatRegex        = regexp.MustCompile(`熱度[:：]\s*([^\s]+)`)
 	ratingRegex      = regexp.MustCompile(`打分人次[:：]\s*\d+\s*,\s*總得分[:：]\s*\d+\s*,\s*本月得分[:：]\s*\d+`)
+	htmlTitleRegex   = regexp.MustCompile(`(?is)<title>(.*?)</title>`)
+	h2TitleRegex     = regexp.MustCompile(`(?is)<li[^>]*class=["'][^"']*\bh2\b[^"']*["'][^>]*>(.*?)</li>`)
 	l095Regex        = regexp.MustCompile(`var\s+l095_6\s*=\s*'([^']+)'`)
 	chsRegex         = regexp.MustCompile(`var\s+chs\s*=\s*(\d+)`)
 	trailingPart     = regexp.MustCompile(`[a-z]$`)
@@ -190,6 +192,12 @@ func scrape8comicChapters(r *http.Request, comicID string) ([]chapterItem, error
 	}
 
 	chapters := parseChapterItems(html)
+	if len(chapters) == 0 {
+		chapters = parseChaptersFromScript(html)
+	}
+	if len(chapters) == 0 {
+		chapters = parseChaptersFromRange(html)
+	}
 	if len(chapters) == 0 {
 		return nil, fmt.Errorf("no chapters parsed from source")
 	}
@@ -357,6 +365,47 @@ func parseChapterItems(html string) []chapterItem {
 	return out
 }
 
+func parseChaptersFromScript(html string) []chapterItem {
+	m := chsRegex.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return nil
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil || n <= 0 {
+		return nil
+	}
+	out := make([]chapterItem, 0, n)
+	for i := 1; i <= n; i++ {
+		id := strconv.Itoa(i)
+		out = append(out, chapterItem{ID: id, Title: "第 " + id + " 集"})
+	}
+	return out
+}
+
+func parseChaptersFromRange(html string) []chapterItem {
+	plainText := whitespaceRegex.ReplaceAllString(htmlTagRegex.ReplaceAllString(html, " "), " ")
+	m := chapterSumRegex.FindStringSubmatch(plainText)
+	if len(m) < 2 {
+		return nil
+	}
+	rng := strings.ReplaceAll(strings.TrimSpace(m[1]), " ", "")
+	parts := strings.SplitN(rng, "-", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	start, err1 := strconv.Atoi(parts[0])
+	end, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil || start <= 0 || end < start {
+		return nil
+	}
+	out := make([]chapterItem, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		id := strconv.Itoa(i)
+		out = append(out, chapterItem{ID: id, Title: "第 " + id + " 集"})
+	}
+	return out
+}
+
 func parseComicMeta(html, comicID, sourceURL string) comicMetaResponse {
 	meta := comicMetaResponse{ComicID: comicID, SourceURL: sourceURL}
 	metaMap := make(map[string]string)
@@ -370,6 +419,17 @@ func parseComicMeta(html, comicID, sourceURL string) comicMetaResponse {
 	meta.Title = firstNonEmpty(metaMap["og:title"], metaMap["twitter:title"], metaMap["title"])
 	meta.Description = firstNonEmpty(metaMap["og:description"], metaMap["description"])
 	meta.CoverImageURL = normalizeURL(firstNonEmpty(metaMap["og:image"], metaMap["twitter:image"]), sourceURL)
+	if meta.Title == "" {
+		if m := h2TitleRegex.FindStringSubmatch(html); len(m) > 1 {
+			meta.Title = strings.TrimSpace(htmlTagRegex.ReplaceAllString(m[1], ""))
+		}
+	}
+	if meta.Title == "" {
+		if m := htmlTitleRegex.FindStringSubmatch(html); len(m) > 1 {
+			rawTitle := strings.TrimSpace(htmlTagRegex.ReplaceAllString(m[1], ""))
+			meta.Title = normalizeTitle(rawTitle)
+		}
+	}
 
 	if meta.CoverImageURL == "" {
 		for _, m := range imgSrcRegex.FindAllStringSubmatch(html, -1) {
@@ -417,6 +477,24 @@ func parseComicMeta(html, comicID, sourceURL string) comicMetaResponse {
 	}
 
 	return meta
+}
+
+func normalizeTitle(title string) string {
+	trim := strings.TrimSpace(title)
+	if trim == "" {
+		return ""
+	}
+	cutMarkers := []string{
+		" 最新漫畫",
+		" - 無限動漫",
+		" 8comic.com",
+	}
+	for _, marker := range cutMarkers {
+		if idx := strings.Index(trim, marker); idx > 0 {
+			trim = strings.TrimSpace(trim[:idx])
+		}
+	}
+	return strings.TrimSpace(trim)
 }
 
 func extractChapterID(href string) string {

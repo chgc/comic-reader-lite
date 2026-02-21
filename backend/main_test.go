@@ -47,6 +47,27 @@ func TestParseChapterItems(t *testing.T) {
 	}
 }
 
+func TestParseChaptersFromScript(t *testing.T) {
+	items := parseChaptersFromScript("<script>var chs=57;var ti=20133;</script>")
+	if len(items) != 57 {
+		t.Fatalf("expected 57 chapter items, got %d", len(items))
+	}
+	if items[0].ID != "1" || items[56].ID != "57" {
+		t.Fatalf("unexpected chapter bounds: first=%+v last=%+v", items[0], items[56])
+	}
+}
+
+func TestParseChaptersFromRange(t *testing.T) {
+	html := "<div>作者: abc 2026-02-21</div><div>漫畫：[1-57] 連載中</div>"
+	items := parseChaptersFromRange(html)
+	if len(items) != 57 {
+		t.Fatalf("expected 57 chapter items, got %d", len(items))
+	}
+	if items[0].ID != "1" || items[56].ID != "57" {
+		t.Fatalf("unexpected chapter bounds: first=%+v last=%+v", items[0], items[56])
+	}
+}
+
 func TestMetaHandlerRejectsNon8comicProvider(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/comics/100/meta?provider=mock", nil)
 	res := httptest.NewRecorder()
@@ -77,6 +98,25 @@ func TestParseComicMeta(t *testing.T) {
 	}
 	if meta.ChapterRange != "1-57" || meta.SeriesStatus != "連載中" {
 		t.Fatalf("unexpected chapter/status: %+v", meta)
+	}
+}
+
+func TestNormalizeTitle(t *testing.T) {
+	got := normalizeTitle("太散漫了,堀田老師! 堀田留美子 最新漫畫綫上觀看 - 無限動漫 8comic.com")
+	if got != "太散漫了,堀田老師! 堀田留美子" {
+		t.Fatalf("unexpected normalized title: %s", got)
+	}
+}
+
+func TestParseComicMetaUsesH2Title(t *testing.T) {
+	html := `
+<title>太散漫了,堀田老師! 堀田留美子 最新漫畫綫上觀看 - 無限動漫 8comic.com</title>
+<li class="h2 mb-1">太散漫了,堀田老師!</li>
+<span class="item-info-author">作者: なかだまお</span>
+`
+	meta := parseComicMeta(html, "20133", "https://www.8comic.com/html/20133.html")
+	if meta.Title != "太散漫了,堀田老師!" {
+		t.Fatalf("unexpected title parsed from h2: %s", meta.Title)
 	}
 }
 
