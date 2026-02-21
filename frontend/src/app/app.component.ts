@@ -158,10 +158,10 @@ export class AppComponent {
     } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
       event.preventDefault();
       this.scrollToPageIndex(this.currentPageIndex() - 1);
-    } else if (event.key === '[') {
+    } else if (event.key === '[' && this.hasPrevChapter()) {
       event.preventDefault();
       this.prevChapter();
-    } else if (event.key === ']') {
+    } else if (event.key === ']' && this.hasNextChapter()) {
       event.preventDefault();
       this.nextChapter();
     }
