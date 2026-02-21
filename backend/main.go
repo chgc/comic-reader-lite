@@ -47,28 +47,36 @@ type comicMetaResponse struct {
 }
 
 var (
-	imgSrcRegex      = regexp.MustCompile(`(?i)<img[^>]+src=["']([^"']+)["']`)
-	urlRegex         = regexp.MustCompile(`https?://[^\s"'<>]+?\.(jpg|jpeg|png|gif|webp)`)
-	anchorRegex      = regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)</a>`)
-	metaTagRegex     = regexp.MustCompile(`(?is)<meta[^>]+(?:property|name)=["']([^"']+)["'][^>]+content=["']([^"']*)["'][^>]*>`)
-	htmlTagRegex     = regexp.MustCompile(`(?is)<[^>]+>`)
-	chapterIDRegex   = regexp.MustCompile(`(?i)(?:[?&]ch=|chapter=)(\d+)`)
-	whitespaceRegex  = regexp.MustCompile(`\s+`)
-	fallbackNumRegex = regexp.MustCompile(`\d+`)
-	authorRegex      = regexp.MustCompile(`作者[:：]\s*([^\s<]+)`)
-	dateRegex        = regexp.MustCompile(`\b20\d{2}-\d{2}-\d{2}\b`)
-	statusRegex      = regexp.MustCompile(`(連載中|完結|已完結|連載|完结)`)
-	chapterSumRegex  = regexp.MustCompile(`漫畫[:：]\s*\[?(\d+\s*-\s*\d+)\]?`)
-	categoryRegex    = regexp.MustCompile(`(?is)<a[^>]+href=["']/comic/\d+-\d+\.html["'][^>]*>(.*?)</a>`)
-	heatRegex        = regexp.MustCompile(`熱度[:：]\s*([^\s]+)`)
-	ratingRegex      = regexp.MustCompile(`打分人次[:：]\s*\d+\s*,\s*總得分[:：]\s*\d+\s*,\s*本月得分[:：]\s*\d+`)
-	htmlTitleRegex   = regexp.MustCompile(`(?is)<title>(.*?)</title>`)
-	h2TitleRegex     = regexp.MustCompile(`(?is)<li[^>]*class=["'][^"']*\bh2\b[^"']*["'][^>]*>(.*?)</li>`)
-	l095Regex        = regexp.MustCompile(`var\s+l095_6\s*=\s*'([^']+)'`)
-	chsRegex         = regexp.MustCompile(`var\s+chs\s*=\s*(\d+)`)
-	payloadRegex     = regexp.MustCompile(`var\s+[A-Za-z0-9_]+\s*=\s*'([A-Za-z0-9]{200,})'`)
-	loopCountRegex   = regexp.MustCompile(`for\s*\(\s*var\s+[A-Za-z0-9_]+\s*=\s*0\s*;\s*[A-Za-z0-9_]+\s*<\s*(\d+)\s*;`)
-	trailingPart     = regexp.MustCompile(`[a-z]$`)
+	imgSrcRegex       = regexp.MustCompile(`(?i)<img[^>]+src=["']([^"']+)["']`)
+	urlRegex          = regexp.MustCompile(`https?://[^\s"'<>]+?\.(jpg|jpeg|png|gif|webp)`)
+	anchorRegex       = regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)</a>`)
+	metaTagRegex      = regexp.MustCompile(`(?is)<meta[^>]+(?:property|name)=["']([^"']+)["'][^>]+content=["']([^"']*)["'][^>]*>`)
+	htmlTagRegex      = regexp.MustCompile(`(?is)<[^>]+>`)
+	chapterIDRegex    = regexp.MustCompile(`(?i)(?:[?&]ch=|chapter=)(\d+)`)
+	whitespaceRegex   = regexp.MustCompile(`\s+`)
+	fallbackNumRegex  = regexp.MustCompile(`\d+`)
+	authorRegex       = regexp.MustCompile(`作者[:：]\s*([^\s<]+)`)
+	dateRegex         = regexp.MustCompile(`\b20\d{2}-\d{2}-\d{2}\b`)
+	statusRegex       = regexp.MustCompile(`(連載中|完結|已完結|連載|完结)`)
+	chapterSumRegex   = regexp.MustCompile(`漫畫[:：]\s*\[?(\d+\s*-\s*\d+)\]?`)
+	categoryRegex     = regexp.MustCompile(`(?is)<a[^>]+href=["']/comic/\d+-\d+\.html["'][^>]*>(.*?)</a>`)
+	heatRegex         = regexp.MustCompile(`熱度[:：]\s*([^\s]+)`)
+	ratingRegex       = regexp.MustCompile(`打分人次[:：]\s*\d+\s*,\s*總得分[:：]\s*\d+\s*,\s*本月得分[:：]\s*\d+`)
+	htmlTitleRegex    = regexp.MustCompile(`(?is)<title>(.*?)</title>`)
+	h2TitleRegex      = regexp.MustCompile(`(?is)<li[^>]*class=["'][^"']*\bh2\b[^"']*["'][^>]*>(.*?)</li>`)
+	l095Regex         = regexp.MustCompile(`var\s+l095_6\s*=\s*'([^']+)'`)
+	chsRegex          = regexp.MustCompile(`var\s+chs\s*=\s*(\d+)`)
+	payloadRegex      = regexp.MustCompile(`var\s+[A-Za-z0-9_]+\s*=\s*'([A-Za-z0-9]{200,})'`)
+	loopCountRegex    = regexp.MustCompile(`for\s*\(\s*var\s+[A-Za-z0-9_]+\s*=\s*0\s*;\s*[A-Za-z0-9_]+\s*<\s*(\d+)\s*;`)
+	xxBlockRegex      = regexp.MustCompile(`(?is)var\s+xx\s*=\s*'';.*?\$\(['"]#comics-pics['"]\)\.html\(xx\);`)
+	numericCallRegex  = regexp.MustCompile(`([A-Za-z0-9_]+)\((\d+)\)`)
+	functionBodyRegex = regexp.MustCompile(`(?is)function\s+%s\s*\([^)]*\)\s*\{(.*?)\}`)
+	loopAssignRegex   = regexp.MustCompile(`var\s+([A-Za-z0-9_]+)\s*=\s*lc\([A-Za-z0-9_]+\([A-Za-z0-9_]+,\s*i\s*\*\s*\([^)]*\)\s*\+\s*(\d+)(?:,\s*(\d+))?\)\)\s*;`)
+	psVarRegex        = regexp.MustCompile(`ps\s*=\s*([A-Za-z0-9_]+)\s*;`)
+	ifChapterVarRegex = regexp.MustCompile(`if\s*\(\s*([A-Za-z0-9_]+)\s*==\s*ch`)
+	hostVarRegex      = regexp.MustCompile(`\+\s*[A-Za-z0-9_]+\(\s*([A-Za-z0-9_]+)\s*,\s*0\s*,\s*1\s*\)`)
+	seedVarRegex      = regexp.MustCompile(`\+\s*[A-Za-z0-9_]+\(\s*([A-Za-z0-9_]+)\s*,\s*mm\(j\)\s*,\s*3\s*\)`)
+	trailingPart      = regexp.MustCompile(`[a-z]$`)
 )
 
 func main() {
@@ -239,28 +247,48 @@ func scrape8comicPages(r *http.Request, comicID, chapter string) ([]string, erro
 }
 
 func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) {
-	payload, totalChapters, err := extractScriptPayloadAndCount(html)
+	decodeFn, decodeIndexes := extractDecodePatternFromXX(html)
+	payload, totalChapters, err := extractScriptPayloadAndCount(html, decodeFn)
 	if err != nil {
 		return nil, err
 	}
 
 	chRaw, selectedPart := normalizeChapterKey(chapter)
-	urls, err := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, 40, 42, 44, 0)
-	if err == nil && len(urls) > 0 {
-		return urls, nil
+	if dynamicLayout, ok := inferLayoutFromScript(html); ok {
+		urls, parseErr := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, dynamicLayout[0], dynamicLayout[1], dynamicLayout[2], dynamicLayout[3], decodeIndexes)
+		if parseErr == nil && len(urls) > 0 {
+			return urls, nil
+		}
 	}
-	urls, err = parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, 2, 0, 4, 6)
-	if err == nil && len(urls) > 0 {
-		return urls, nil
+	layouts := [][4]int{
+		{40, 42, 44, 0}, // seed->chapter->folder->pages
+		{2, 0, 4, 6},    // folder/chapter/pages/seed
+		{44, 2, 0, 4},   // pages/folder/seed/chapter
+		{2, 0, 44, 4},   // folder/chapter/seed/pages
+	}
+	for _, layout := range layouts {
+		urls, parseErr := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, layout[0], layout[1], layout[2], layout[3], decodeIndexes)
+		if parseErr == nil && len(urls) > 0 {
+			return urls, nil
+		}
 	}
 	return nil, fmt.Errorf("target chapter not found in payload")
 }
 
-func extractScriptPayloadAndCount(html string) (string, int, error) {
+func extractScriptPayloadAndCount(html string, decodeFn string) (string, int, error) {
 	l095Match := l095Regex.FindStringSubmatch(html)
 	payload := ""
 	if len(l095Match) > 1 {
 		payload = l095Match[1]
+	}
+	if payload == "" && decodeFn != "" {
+		payloadVar := extractPayloadVarByDecodeFunction(html, decodeFn)
+		if payloadVar != "" {
+			assignRegex := regexp.MustCompile(fmt.Sprintf(`var\s+%s\s*=\s*'([A-Za-z0-9]{200,})'`, regexp.QuoteMeta(payloadVar)))
+			if m := assignRegex.FindStringSubmatch(html); len(m) > 1 {
+				payload = m[1]
+			}
+		}
 	}
 	if payload == "" {
 		m := payloadRegex.FindStringSubmatch(html)
@@ -292,6 +320,25 @@ func extractScriptPayloadAndCount(html string) (string, int, error) {
 	return payload, totalChapters, nil
 }
 
+func extractPayloadVarByDecodeFunction(html, decodeFn string) string {
+	if decodeFn == "" {
+		return ""
+	}
+	bodyPattern := fmt.Sprintf(functionBodyRegex.String(), regexp.QuoteMeta(decodeFn))
+	bodyRegex := regexp.MustCompile(bodyPattern)
+	m := bodyRegex.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return ""
+	}
+	body := m[1]
+	varRefRegex := regexp.MustCompile(`([A-Za-z0-9_]+)\.substring\(`)
+	vm := varRefRegex.FindStringSubmatch(body)
+	if len(vm) < 2 {
+		return ""
+	}
+	return vm[1]
+}
+
 func normalizeChapterKey(chapter string) (string, string) {
 	chRaw := chapter
 	if strings.Contains(chRaw, "-") {
@@ -309,7 +356,7 @@ func normalizeChapterKey(chapter string) (string, string) {
 	return chRaw, part
 }
 
-func parsePagesByLayout(payload string, totalChapters int, chRaw string, part string, comicID string, chapterOffset int, folderOffset int, pageOffset int, seedOffset int) ([]string, error) {
+func parsePagesByLayout(payload string, totalChapters int, chRaw string, part string, comicID string, chapterOffset int, folderOffset int, pageOffset int, seedOffset int, decodeIndexes [5]int) ([]string, error) {
 	if len(payload) < 47 {
 		return nil, fmt.Errorf("script payload not found")
 	}
@@ -347,11 +394,15 @@ func parsePagesByLayout(payload string, totalChapters int, chRaw string, part st
 		return nil, fmt.Errorf("target chapter not found in payload")
 	}
 
-	imgPrefix := decodeTailMarker(payload, 4, "img")
-	domainPartA := decodeTailMarker(payload, 3, "com")
-	domainPartB := decodeTailMarker(payload, 2, "ic.")
-	ext := decodeTailMarker(payload, 1, "jpg")
-	host := fmt.Sprintf("%s%s.8%s%s%s", imgPrefix, folderCode[:1], domainPartA, domainPartB, domainPartA)
+	imgPrefix := decodeTailMarker(payload, decodeIndexes[0], "img")
+	domainPartA := decodeTailMarker(payload, decodeIndexes[1], "com")
+	domainPartB := decodeTailMarker(payload, decodeIndexes[2], "ic.")
+	domainPartC := decodeTailMarker(payload, decodeIndexes[3], "com")
+	ext := decodeTailMarker(payload, decodeIndexes[4], "jpg")
+	if domainPartC == "" {
+		domainPartC = domainPartA
+	}
+	host := fmt.Sprintf("%s%s.8%s%s%s", imgPrefix, folderCode[:1], domainPartA, domainPartB, domainPartC)
 	firstDir := folderCode[1:2]
 
 	pages := make([]string, 0, pageCount)
@@ -366,6 +417,86 @@ func parsePagesByLayout(payload string, totalChapters int, chRaw string, part st
 		return nil, fmt.Errorf("no pages generated from payload")
 	}
 	return pages, nil
+}
+
+func extractDecodePatternFromXX(html string) (string, [5]int) {
+	defaults := [5]int{4, 3, 2, 3, 1}
+	block := xxBlockRegex.FindString(html)
+	if block == "" {
+		return "", defaults
+	}
+	type pair struct {
+		fn  string
+		arg int
+	}
+	calls := make([]pair, 0, 16)
+	countByFn := make(map[string]int)
+	for _, m := range numericCallRegex.FindAllStringSubmatch(block, -1) {
+		arg, err := strconv.Atoi(m[2])
+		if err != nil {
+			continue
+		}
+		fn := m[1]
+		calls = append(calls, pair{fn: fn, arg: arg})
+		countByFn[fn]++
+	}
+	targetFn := ""
+	for _, c := range calls {
+		if countByFn[c.fn] >= 5 {
+			targetFn = c.fn
+			break
+		}
+	}
+	if targetFn == "" {
+		return "", defaults
+	}
+	args := make([]int, 0, 5)
+	for _, c := range calls {
+		if c.fn == targetFn {
+			args = append(args, c.arg)
+			if len(args) == 5 {
+				break
+			}
+		}
+	}
+	if len(args) != 5 {
+		return targetFn, defaults
+	}
+	return targetFn, [5]int{args[0], args[1], args[2], args[3], args[4]}
+}
+
+func inferLayoutFromScript(html string) ([4]int, bool) {
+	var zero [4]int
+	offsetByVar := make(map[string]int)
+	for _, m := range loopAssignRegex.FindAllStringSubmatch(html, -1) {
+		offset, err := strconv.Atoi(m[2])
+		if err != nil {
+			continue
+		}
+		offsetByVar[m[1]] = offset
+	}
+	if len(offsetByVar) == 0 {
+		return zero, false
+	}
+	psVarMatch := psVarRegex.FindStringSubmatch(html)
+	chVarMatch := ifChapterVarRegex.FindStringSubmatch(html)
+	block := xxBlockRegex.FindString(html)
+	if len(psVarMatch) < 2 || len(chVarMatch) < 2 || block == "" {
+		return zero, false
+	}
+	hostVarMatch := hostVarRegex.FindStringSubmatch(block)
+	seedVarMatch := seedVarRegex.FindStringSubmatch(block)
+	if len(hostVarMatch) < 2 || len(seedVarMatch) < 2 {
+		return zero, false
+	}
+	pageOffset, ok1 := offsetByVar[psVarMatch[1]]
+	chOffset, ok2 := offsetByVar[chVarMatch[1]]
+	folderOffset, ok3 := offsetByVar[hostVarMatch[1]]
+	seedOffset, ok4 := offsetByVar[seedVarMatch[1]]
+	if !(ok1 && ok2 && ok3 && ok4) {
+		return zero, false
+	}
+	return [4]int{chOffset, folderOffset, pageOffset, seedOffset}, true
 }
 
 func scrape8comicMeta(r *http.Request, comicID string) (comicMetaResponse, error) {

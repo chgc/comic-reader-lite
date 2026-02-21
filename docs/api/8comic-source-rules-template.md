@@ -261,7 +261,9 @@ var nt = '[ ' + ni + ' ]';
 $('#pt,#ptb').append(' <small>第' + ch + '集</small><small> (' + ps + 'P)</small>');
 ```
 
-而 https://articles.onemoreplace.tw/online/new-23095.html?ch=1 拿到的 script 是
+第一張 img src 是 //img9.8comic.com/3/20133/1/001_48m.jpg
+
+而 https://articles.onemoreplace.tw/online/new-20636.html?ch=1 拿到的 script 是
 
 ```javascript
 function request(qs) {
@@ -302,50 +304,50 @@ var ps = 0;
 function ge(e) {
   return document.getElementById(e);
 }
-var chs = 57;
-var ti = 23095;
+var chs = 39;
+var ti = 20636;
 var rp = '/ReadComic/';
 var mk = 0;
-var fz = 'f_14WlTy63pmsexyIe7bh6BQbW_Alz2_1Y78mo307R_P_pMV__9ivh25493a2_04Dg0s3f9068t2u48A4X52t_6_4Ms3531o4knt';
-var b1u6m1_ = '%';
-function hj5w7brg_(nrg_59, nrv_vg, w4sgrc_r57) {
-  if (w4sgrc_r57 == null) w4sgrc_r57 = 40;
-  var u_r579bec = (nrg_59 + '').substring(nrv_vg, nrv_vg + w4sgrc_r57);
-  return u_r579bec;
-}
-var g2t04152s =
-  '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';
-var g52s7fj5w = 48;
-var d26k8ide = 49;
-var n9b_0p = b1u6m1_ + '38';
-var bmk6739 = b1u6m1_ + '2f';
-function o0ry4p2(nrg_59) {
-  return jbeclv0ry4(g2t04152s.substring(g2t04152s.length - 47 - nrg_59 * 6, g2t04152s.length - 47 - nrg_59 * 6 + 6));
-}
-var qv81b426 = 46;
-function jbeclv0ry4(nrg_59) {
-  var nrv_vg = '';
-  for (var i = 0; i < nrg_59.length / 2; i++) {
-    nrv_vg += '%' + nrg_59.substring(i * 2, i * 2 + 2);
+var fz = '_a5eK058z35697P7_Sm9935E5V__s6N23b5z5Pz_k2q3z_9vFou16u981P5_5Y35ECM7Lrjyt3_Pgi8z9s1e587RsVXr7Awl941M';
+var fb9c2qz4 = '%';
+var q1_0_71j = fb9c2qz4 + '38';
+function j7u___6qi0(ng2s2_) {
+  var nq6p8_ = '';
+  for (var i = 0; i < ng2s2_.length / 2; i++) {
+    nq6p8_ += '%' + ng2s2_.substring(i * 2, i * 2 + 2);
   }
-  return unescape(nrv_vg);
+  return unescape(nq6p8_);
 }
-var l2vb0_ = b1u6m1_ + '5f';
-var w_3xm9mk67 = b1u6m1_ + '2e';
-for (var i = 0; i < 53; i++) {
-  var ac0232_ = lc(hj5w7brg_(g2t04152s, i * (d26k8ide - 2) + 0, 2));
-  var l6bgly = lc(hj5w7brg_(g2t04152s, i * (qv81b426 + 1) + 2, 2));
-  var b_y_q9r = lc(hj5w7brg_(g2t04152s, i * (g52s7fj5w - 1) + 4, 2));
-  var fr_71_gx = lc(hj5w7brg_(g2t04152s, i * (qv81b426 + 1) + 6));
-  var ngx_t4 = lc(hj5w7brg_(g2t04152s, i * (g52s7fj5w - 1) + 46, 1));
-  ps = b_y_q9r;
-  if (l6bgly == ch && (part == '' || part == ngx_t4)) {
+function d6qi0ke0(ng2s2_) {
+  return j7u___6qi0(ha0i9l2cn.substring(ha0i9l2cn.length - 47 - ng2s2_ * 6, ha0i9l2cn.length - 47 - ng2s2_ * 6 + 6));
+}
+var vu999_2az = 46;
+var ha0i9l2cn =
+  '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';
+var u904pb1_0 = fb9c2qz4 + '2f';
+var h2az_k930 = 49;
+var l2cnb8 = 48;
+function r6d37_g2(ng2s2_, nq6p8_, g63w_b9_1) {
+  if (g63w_b9_1 == null) g63w_b9_1 = 40;
+  var k9_1su7u__ = (ng2s2_ + '').substring(nq6p8_, nq6p8_ + g63w_b9_1);
+  return k9_1su7u__;
+}
+var oe0b34b = fb9c2qz4 + '5f';
+var mz4l32 = fb9c2qz4 + '2e';
+for (var i = 0; i < 44; i++) {
+  var rg__42s9 = lc(r6d37_g2(ha0i9l2cn, i * (l2cnb8 - 1) + 0, 2));
+  var og7k7_g = lc(r6d37_g2(ha0i9l2cn, i * (h2az_k930 - 2) + 2, 2));
+  var js97lu8cy4 = lc(r6d37_g2(ha0i9l2cn, i * (vu999_2az + 1) + 4));
+  var s27et3g7 = lc(r6d37_g2(ha0i9l2cn, i * (vu999_2az + 1) + 44, 2));
+  var c8cy4v9 = lc(r6d37_g2(ha0i9l2cn, i * (l2cnb8 - 1) + 46, 1));
+  ps = rg__42s9;
+  if (s27et3g7 == ch && (part == '' || part == c8cy4v9)) {
     ci = i;
-    if (part == '' && ngx_t4 != '0') part = ngx_t4;
-    var pip = ci > 0 ? lc(hj5w7brg_(g2t04152s, ci * (g52s7fj5w - 1) - (qv81b426 + 1) + 46, 1)) : '0';
-    var nip = ci < 53 - 1 ? lc(hj5w7brg_(g2t04152s, (ci + 2) * (g52s7fj5w - 1) - (qv81b426 + 1) + 46, 1)) : '0';
-    pi = ci > 0 ? lc(hj5w7brg_(g2t04152s, ci * (g52s7fj5w - 1) - (qv81b426 + 1) + 2, 2)) : ch;
-    ni = ci < 53 - 1 ? lc(hj5w7brg_(g2t04152s, (ci + 2) * (g52s7fj5w - 1) - (qv81b426 + 1) + 2, 2)) : ch;
+    if (part == '' && c8cy4v9 != '0') part = c8cy4v9;
+    var pip = ci > 0 ? lc(r6d37_g2(ha0i9l2cn, ci * (l2cnb8 - 1) - (vu999_2az + 1) + 46, 1)) : '0';
+    var nip = ci < 44 - 1 ? lc(r6d37_g2(ha0i9l2cn, (ci + 2) * (l2cnb8 - 1) - (vu999_2az + 1) + 46, 1)) : '0';
+    pi = ci > 0 ? lc(r6d37_g2(ha0i9l2cn, ci * (l2cnb8 - 1) - (vu999_2az + 1) + 44, 2)) : ch;
+    ni = ci < 44 - 1 ? lc(r6d37_g2(ha0i9l2cn, (ci + 2) * (l2cnb8 - 1) - (vu999_2az + 1) + 44, 2)) : ch;
     break;
   }
 }
@@ -355,28 +357,28 @@ for (var j = 1; j <= ps; j++) {
     '<div class="comics-pic"><a name=' +
     j +
     '></a><img s="' +
-    bmk6739 +
-    bmk6739 +
-    o0ry4p2(4) +
-    hj5w7brg_(ac0232_, 0, 1) +
-    w_3xm9mk67 +
-    n9b_0p +
-    o0ry4p2(3) +
-    o0ry4p2(2) +
-    o0ry4p2(3) +
-    bmk6739 +
-    hj5w7brg_(ac0232_, 1, 1) +
-    bmk6739 +
+    u904pb1_0 +
+    u904pb1_0 +
+    d6qi0ke0(4) +
+    r6d37_g2(og7k7_g, 0, 1) +
+    mz4l32 +
+    q1_0_71j +
+    d6qi0ke0(3) +
+    d6qi0ke0(2) +
+    d6qi0ke0(3) +
+    u904pb1_0 +
+    r6d37_g2(og7k7_g, 1, 1) +
+    u904pb1_0 +
     ti +
-    bmk6739 +
-    l6bgly +
-    (ngx_t4 == '0' ? '' : ngx_t4) +
-    bmk6739 +
+    u904pb1_0 +
+    s27et3g7 +
+    (c8cy4v9 == '0' ? '' : c8cy4v9) +
+    u904pb1_0 +
     nn(j) +
-    l2vb0_ +
-    hj5w7brg_(fr_71_gx, mm(j), 3) +
-    w_3xm9mk67 +
-    o0ry4p2(1) +
+    oe0b34b +
+    r6d37_g2(js97lu8cy4, mm(j), 3) +
+    mz4l32 +
+    d6qi0ke0(1) +
     '" draggable="false"><b>' +
     j +
     '</b></div>';
@@ -462,3 +464,15 @@ var pt = '[ ' + pi + ' ]';
 var nt = '[ ' + ni + ' ]';
 $('#pt,#ptb').append(' <small>第' + ch + '集</small><small> (' + ps + 'P)</small>');
 ```
+
+第一張 img src 是 //img7.8comic.com/3/20636/1/001_FrA.jpg
+
+## 3.1 延續 3. 的規則，但提供更多範例
+
+| comic id | ch  | first pic url                           |
+| -------- | --- | --------------------------------------- |
+| 21249    | 1   | //img7.8comic.com/2/21249/1/001_PVx.jpg |
+| 21163    | 1   | //img7.8comic.com/3/21163/1/001_YmS.jpg |
+| 26304    | 1   | //img7.8comic.com/1/26304/1/001_2uM.jpg |
+| 20133    | 1   | //img9.8comic.com/3/20133/1/001_48m.jpg |
+| 28556    | 1   | //img6.8comic.com/2/28556/1/001_4Hc.jpg |

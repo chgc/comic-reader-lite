@@ -172,12 +172,14 @@
   - `GET /api/comics/{comicId}/chapters`
   - `GET /api/comics/{comicId}/chapters/{chapter}/pages`
 - `pages` 解析已支援第二項規則：可從章節頁 script 動態組圖邏輯還原全章圖片 URL。
+- `pages` parsing rule 已強化為動態模式：支援變數/函式名稱變動、decode index 變動、layout 變動（含從 script 反推 layout）。
 - `chapters` 解析已加入 fallback（連結掃描 / script `chs` / 章節範圍文字）。
 - `meta` 標題解析已修正：`comicId=20133` 可取得 `太散漫了,堀田老師!`。
 - 前端已簡化：
   - 移除來源與可選覆寫欄位（固定 8comic 流程）。
   - comic title 改由 metadata 自動取得，不需手動輸入。
   - 按「閱讀」會以當前選定章節開啟，不覆蓋為舊進度章節。
+ - 已新增更多 parser 測試案例（依 8comic-source-rules-template 3.1 擴充），覆蓋多種動態 payload/layout/host 組合。
 
 ### 尚未完成項目
 1. `GET /api/comics/{comicId}/chapters/{chapter}/meta` 尚未實作（目前主要直接回 pages）。
