@@ -1,0 +1,20 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "${BACKEND_PORT:-28080}:8080"
+    environment:
+      - ADDR=:8080
+      # Uncomment and set to override defaults:
+      # - EIGHTCOMIC_BASE_URL=https://www.comicabc.com/html
+      # - EIGHTCOMIC_CHAPTER_URL_TEMPLATE=https://articles.onemoreplace.tw/online/new-%s.html?ch=%s
+      # - EIGHTCOMIC_REFERER=https://www.8comic.com/
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-28000}:80"
+    depends_on:
+      - backend

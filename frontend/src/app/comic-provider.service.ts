@@ -5,7 +5,7 @@ import { ChaptersResponse, ComicMetaResponse, PagesResponse } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ComicProviderService {
-  private readonly apiBase = 'http://localhost:8080/api';
+  private readonly apiBase = '/api';
 
   constructor(private readonly http: HttpClient) {}
 
