@@ -150,12 +150,20 @@ export class AppComponent {
 
   onKey(event: KeyboardEvent): void {
     if (!this.currentComic()) return;
+    const tag = (event.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();
       this.scrollToPageIndex(this.currentPageIndex() + 1);
     } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
       event.preventDefault();
       this.scrollToPageIndex(this.currentPageIndex() - 1);
+    } else if (event.key === '[') {
+      event.preventDefault();
+      this.prevChapter();
+    } else if (event.key === ']') {
+      event.preventDefault();
+      this.nextChapter();
     }
   }
 
