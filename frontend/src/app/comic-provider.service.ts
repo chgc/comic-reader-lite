@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { PagesResponse } from './models';
+import { ChaptersResponse, PagesResponse } from './models';
 
-export type ProviderMode = 'mock' | '8comic';
+export type ProviderMode = '8comic';
 
 @Injectable({ providedIn: 'root' })
 export class ComicProviderService {
@@ -11,10 +11,24 @@ export class ComicProviderService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getPages(comicId: string, chapter: string, provider: ProviderMode, sourceUrl?: string): Observable<PagesResponse> {
+  getChapters(comicId: string, provider: ProviderMode, sourceUrl?: string, referer?: string): Observable<ChaptersResponse> {
     let params = new HttpParams().set('provider', provider);
     if (sourceUrl) {
       params = params.set('sourceUrl', sourceUrl);
+    }
+    if (referer) {
+      params = params.set('referer', referer);
+    }
+    return this.http.get<ChaptersResponse>(`${this.apiBase}/comics/${comicId}/chapters`, { params });
+  }
+
+  getPages(comicId: string, chapter: string, provider: ProviderMode, sourceUrl?: string, referer?: string): Observable<PagesResponse> {
+    let params = new HttpParams().set('provider', provider);
+    if (sourceUrl) {
+      params = params.set('sourceUrl', sourceUrl);
+    }
+    if (referer) {
+      params = params.set('referer', referer);
     }
     return this.http.get<PagesResponse>(`${this.apiBase}/comics/${comicId}/chapters/${chapter}/pages`, { params });
   }

@@ -18,3 +18,13 @@ export interface PagesResponse {
   pages: string[];
 }
 
+export interface ChapterItem {
+  id: string;
+  title: string;
+}
+
+export interface ChaptersResponse {
+  comicId: string;
+  chapters: ChapterItem[];
+}
+

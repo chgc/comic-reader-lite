@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ComicProviderService, ProviderMode } from './comic-provider.service';
-import { Comic, ReadingProgress } from './models';
+import { ChapterItem, Comic, ReadingProgress } from './models';
 import { StorageService } from './storage.service';
 
 @Component({
@@ -16,14 +16,18 @@ import { StorageService } from './storage.service';
         <form class="add-form" (ngSubmit)="addComic()">
           <input [(ngModel)]="newComicId" name="comicId" placeholder="漫畫 ID" required />
           <input [(ngModel)]="newComicTitle" name="comicTitle" placeholder="漫畫名稱" required />
-          <input [(ngModel)]="newChapter" name="chapter" placeholder="章節" required />
+          <button type="button" (click)="fetchDraftChapters()" [disabled]="!newComicId.trim()">取得章節</button>
+          <select [(ngModel)]="newChapter" name="chapter">
+            <option *ngFor="let c of draftChapters" [value]="c.id">{{ c.id }} - {{ c.title }}</option>
+          </select>
+          <input *ngIf="draftChapters.length === 0" [(ngModel)]="newChapter" name="chapterInput" placeholder="章節" required />
           <button type="submit">加入</button>
         </form>
+        <p *ngIf="chapterError" class="error">{{ chapterError }}</p>
 
         <div class="provider-row">
           <label>來源</label>
           <select [(ngModel)]="provider" name="provider">
-            <option value="mock">Mock</option>
             <option value="8comic">8comic</option>
           </select>
         </div>
@@ -32,6 +36,12 @@ import { StorageService } from './storage.service';
           [(ngModel)]="sourceUrl"
           name="sourceUrl"
           placeholder="可選：覆寫章節 URL"
+        />
+        <input
+          *ngIf="provider === '8comic'"
+          [(ngModel)]="sourceReferer"
+          name="sourceReferer"
+          placeholder="可選：覆寫 Referer"
         />
 
         <ul class="comic-list">
@@ -61,8 +71,11 @@ export class AppComponent {
   comics: Comic[] = [];
   progressMap: Record<string, ReadingProgress> = {};
 
-  provider: ProviderMode = 'mock';
+  provider: ProviderMode = '8comic';
   sourceUrl = '';
+  sourceReferer = '';
+  draftChapters: ChapterItem[] = [];
+  chapterError = '';
 
   newComicId = '';
   newComicTitle = '';
@@ -88,10 +101,11 @@ export class AppComponent {
   }
 
   addComic(): void {
+    const chapter = this.newChapter.trim() || this.draftChapters[0]?.id || '1';
     const comic: Comic = {
       id: this.newComicId.trim(),
       title: this.newComicTitle.trim(),
-      chapter: this.newChapter.trim(),
+      chapter,
       addedAt: new Date().toISOString(),
     };
     if (!comic.id || !comic.title || !comic.chapter) {
@@ -102,6 +116,30 @@ export class AppComponent {
     this.openComic(comic);
     this.newComicId = '';
     this.newComicTitle = '';
+    this.newChapter = '1';
+    this.draftChapters = [];
+  }
+
+  fetchDraftChapters(): void {
+    const comicId = this.newComicId.trim();
+    if (!comicId) {
+      return;
+    }
+    this.chapterError = '';
+    this.providerService
+      .getChapters(comicId, this.provider, this.sourceUrl.trim(), this.sourceReferer.trim())
+      .subscribe({
+        next: (res) => {
+          this.draftChapters = res.chapters;
+          if (this.draftChapters.length > 0) {
+            this.newChapter = this.draftChapters[0].id;
+          }
+        },
+        error: (err) => {
+          this.draftChapters = [];
+          this.chapterError = err?.error ?? '章節載入失敗';
+        },
+      });
   }
 
   removeComic(comicId: string): void {
@@ -152,7 +190,7 @@ export class AppComponent {
     this.loading = true;
     this.error = '';
     this.providerService
-      .getPages(this.currentComic.id, this.currentChapter, this.provider, this.sourceUrl.trim())
+      .getPages(this.currentComic.id, this.currentChapter, this.provider, this.sourceUrl.trim(), this.sourceReferer.trim())
       .subscribe({
         next: (res) => {
           this.pages = res.pages;
