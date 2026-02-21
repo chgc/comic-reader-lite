@@ -1,0 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# ------------------------------
+# Backend (Go)
+# ------------------------------
+backend/bin/
+backend/dist/
+backend/tmp/
+backend/coverage.out
+backend/*.exe
+backend/*.test
+backend/*.out
+
+# ------------------------------
+# Frontend (Angular)
+# ------------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+frontend/.cache/
+frontend/.eslintcache
+frontend/.sass-cache/
+frontend/tmp/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
