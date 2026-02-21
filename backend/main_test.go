@@ -132,13 +132,13 @@ func TestParseScriptGeneratedPages(t *testing.T) {
 	if len(pages) != 3 {
 		t.Fatalf("expected 3 pages, got %d", len(pages))
 	}
-	if pages[0] != "https://img9.8comic.com/3/20133/1/001_48m.jpg" {
+	if pages[0] != "//img9.8comic.com/3/20133/1/001_48m.jpg" {
 		t.Fatalf("unexpected first page: %s", pages[0])
 	}
-	if pages[1] != "https://img9.8comic.com/3/20133/1/002_4Sn.jpg" {
+	if pages[1] != "//img9.8comic.com/3/20133/1/002_4Sn.jpg" {
 		t.Fatalf("unexpected second page: %s", pages[1])
 	}
-	if pages[2] != "https://img9.8comic.com/3/20133/1/003_gA8.jpg" {
+	if pages[2] != "//img9.8comic.com/3/20133/1/003_gA8.jpg" {
 		t.Fatalf("unexpected third page: %s", pages[2])
 	}
 }
@@ -156,7 +156,7 @@ func TestParseScriptGeneratedPagesLayoutB(t *testing.T) {
 	if len(pages) != 3 {
 		t.Fatalf("expected 3 pages, got %d", len(pages))
 	}
-	if pages[0] != "https://img9.8comic.com/3/20133/1/001_48m.jpg" {
+	if pages[0] != "//img9.8comic.com/3/20133/1/001_48m.jpg" {
 		t.Fatalf("unexpected first page: %s", pages[0])
 	}
 }
@@ -174,7 +174,7 @@ func TestParseScriptGeneratedPagesLayoutC(t *testing.T) {
 	if len(pages) != 3 {
 		t.Fatalf("expected 3 pages, got %d", len(pages))
 	}
-	if pages[0] != "https://img9.8comic.com/3/20133/1/001_48m.jpg" {
+	if pages[0] != "//img9.8comic.com/3/20133/1/001_48m.jpg" {
 		t.Fatalf("unexpected first page: %s", pages[0])
 	}
 }
@@ -209,7 +209,23 @@ $('#comics-pics').html(xx);
 	if len(pages) != 3 {
 		t.Fatalf("expected 3 pages, got %d", len(pages))
 	}
-	if pages[0] != "https://img9.8comic.com/3/20133/1/001_48m.jpg" {
+	if pages[0] != "//img9.8comic.com/3/20133/1/001_48m.jpg" {
+		t.Fatalf("unexpected first page: %s", pages[0])
+	}
+}
+
+func TestParseScriptGeneratedPagesUsesFirstPageHint(t *testing.T) {
+	seed := "48m4SngA8" + strings.Repeat("x", 31)
+	l095 := seed + "abbPad0"
+	html := "<script>var chs=1;var l095_6='" + l095 + "';</script><img s=\"//img7.8comic.com/3/20133/1/001_48m.jpg\">"
+	pages, err := parseScriptGeneratedPages(html, "20133", "1")
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if len(pages) == 0 {
+		t.Fatal("expected generated pages")
+	}
+	if pages[0] != "//img7.8comic.com/3/20133/1/001_48m.jpg" {
 		t.Fatalf("unexpected first page: %s", pages[0])
 	}
 }
@@ -222,6 +238,33 @@ for (var i=0;i<2;i++){
   var vChapter=lc(fn(payload,i*(46+1)+2,2));
   var vFolder=lc(fn(payload,i*(49-2)+0,2));
   var vSeed=lc(fn(payload,i*(46+1)+4));
+  ps=vPage;
+  if(vChapter==ch){break;}
+}
+var xx='';
+for(var j=1;j<=ps;j++){
+  xx+='<img s="' + a + fn(vFolder,0,1) + b + fn(vSeed,mm(j),3) + '">';
+}
+$('#comics-pics').html(xx);
+</script>`
+	got, ok := inferLayoutFromScript(html)
+	if !ok {
+		t.Fatal("expected layout inference success")
+	}
+	want := [4]int{2, 0, 44, 4}
+	if got != want {
+		t.Fatalf("unexpected layout: got=%v want=%v", got, want)
+	}
+}
+
+func TestInferLayoutFromScriptWithoutParenthesizedStride(t *testing.T) {
+	html := `
+<script>
+for (var i=0;i<2;i++){
+  var vPage=lc(fn(payload,i*47+44,2));
+  var vChapter=lc(fn(payload,i*47+2,2));
+  var vFolder=lc(fn(payload,i*47+0,2));
+  var vSeed=lc(fn(payload,i*47+4));
   ps=vPage;
   if(vChapter==ch){break;}
 }

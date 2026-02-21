@@ -71,11 +71,12 @@ var (
 	xxBlockRegex      = regexp.MustCompile(`(?is)var\s+xx\s*=\s*'';.*?\$\(['"]#comics-pics['"]\)\.html\(xx\);`)
 	numericCallRegex  = regexp.MustCompile(`([A-Za-z0-9_]+)\((\d+)\)`)
 	functionBodyRegex = regexp.MustCompile(`(?is)function\s+%s\s*\([^)]*\)\s*\{(.*?)\}`)
-	loopAssignRegex   = regexp.MustCompile(`var\s+([A-Za-z0-9_]+)\s*=\s*lc\([A-Za-z0-9_]+\([A-Za-z0-9_]+,\s*i\s*\*\s*\([^)]*\)\s*\+\s*(\d+)(?:,\s*(\d+))?\)\)\s*;`)
+	loopAssignRegex   = regexp.MustCompile(`var\s+([A-Za-z0-9_]+)\s*=\s*lc\([A-Za-z0-9_]+\([A-Za-z0-9_]+,\s*i\s*\*\s*(?:\([^)]*\)|\d+)\s*\+\s*(\d+)(?:,\s*(\d+))?\)\)\s*;`)
 	psVarRegex        = regexp.MustCompile(`ps\s*=\s*([A-Za-z0-9_]+)\s*;`)
 	ifChapterVarRegex = regexp.MustCompile(`if\s*\(\s*([A-Za-z0-9_]+)\s*==\s*ch`)
 	hostVarRegex      = regexp.MustCompile(`\+\s*[A-Za-z0-9_]+\(\s*([A-Za-z0-9_]+)\s*,\s*0\s*,\s*1\s*\)`)
 	seedVarRegex      = regexp.MustCompile(`\+\s*[A-Za-z0-9_]+\(\s*([A-Za-z0-9_]+)\s*,\s*mm\(j\)\s*,\s*3\s*\)`)
+	firstPageHintRegex = regexp.MustCompile(`(?i)(?:https?:)?//img\d+\.8comic\.com/\d+/\d+/\d+[A-Za-z]?/001_[A-Za-z0-9]{3}\.[a-z0-9]+`)
 	trailingPart      = regexp.MustCompile(`[a-z]$`)
 )
 
@@ -254,11 +255,22 @@ func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) 
 	}
 
 	chRaw, selectedPart := normalizeChapterKey(chapter)
-	if dynamicLayout, ok := inferLayoutFromScript(html); ok {
-		urls, parseErr := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, dynamicLayout[0], dynamicLayout[1], dynamicLayout[2], dynamicLayout[3], decodeIndexes)
-		if parseErr == nil && len(urls) > 0 {
-			return urls, nil
+	candidates := make([][]string, 0, 6)
+	seenFirstPage := make(map[string]struct{})
+	tryLayout := func(layout [4]int) {
+		urls, parseErr := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, layout[0], layout[1], layout[2], layout[3], decodeIndexes)
+		if parseErr != nil || len(urls) == 0 {
+			return
 		}
+		key := normalizePageURLForCompare(urls[0])
+		if _, exists := seenFirstPage[key]; exists {
+			return
+		}
+		seenFirstPage[key] = struct{}{}
+		candidates = append(candidates, urls)
+	}
+	if dynamicLayout, ok := inferLayoutFromScript(html); ok {
+		tryLayout(dynamicLayout)
 	}
 	layouts := [][4]int{
 		{40, 42, 44, 0}, // seed->chapter->folder->pages
@@ -267,12 +279,36 @@ func parseScriptGeneratedPages(html, comicID, chapter string) ([]string, error) 
 		{2, 0, 44, 4},   // folder/chapter/seed/pages
 	}
 	for _, layout := range layouts {
-		urls, parseErr := parsePagesByLayout(payload, totalChapters, chRaw, selectedPart, comicID, layout[0], layout[1], layout[2], layout[3], decodeIndexes)
-		if parseErr == nil && len(urls) > 0 {
-			return urls, nil
+		tryLayout(layout)
+	}
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("target chapter not found in payload")
+	}
+	if hint := extractFirstPageHint(html); hint != "" {
+		normalizedHint := normalizePageURLForCompare(hint)
+		hintHost := extractHostFromPageURL(hint)
+		for _, urls := range candidates {
+			targetURLs := urls
+			if hintHost != "" {
+				targetURLs = applyHostHint(targetURLs, hintHost)
+			}
+			if normalizePageURLForCompare(targetURLs[0]) == normalizedHint {
+				return targetURLs, nil
+			}
+		}
+		if hintHost != "" {
+			adjusted := applyHostHint(candidates[0], hintHost)
+			if len(adjusted) > 0 {
+				return adjusted, nil
+			}
+		}
+		for _, urls := range candidates {
+			if normalizePageURLForCompare(urls[0]) == normalizedHint {
+				return urls, nil
+			}
 		}
 	}
-	return nil, fmt.Errorf("target chapter not found in payload")
+	return candidates[0], nil
 }
 
 func extractScriptPayloadAndCount(html string, decodeFn string) (string, int, error) {
@@ -411,7 +447,7 @@ func parsePagesByLayout(payload string, totalChapters int, chRaw string, part st
 		if len(token) < 3 {
 			break
 		}
-		pages = append(pages, fmt.Sprintf("https://%s/%s/%s/%s%s/%s_%s.%s", host, firstDir, comicID, chRaw, selectedPart, nn(j), token, ext))
+		pages = append(pages, fmt.Sprintf("//%s/%s/%s/%s%s/%s_%s.%s", host, firstDir, comicID, chRaw, selectedPart, nn(j), token, ext))
 	}
 	if len(pages) == 0 {
 		return nil, fmt.Errorf("no pages generated from payload")
@@ -755,6 +791,50 @@ func decodeHexPairs(s string) string {
 		buf = append(buf, byte(v))
 	}
 	return string(buf)
+}
+
+func extractFirstPageHint(html string) string {
+	return firstPageHintRegex.FindString(html)
+}
+
+func normalizePageURLForCompare(raw string) string {
+	trim := strings.TrimSpace(raw)
+	trim = strings.TrimPrefix(trim, "https://")
+	trim = strings.TrimPrefix(trim, "http://")
+	trim = strings.TrimPrefix(trim, "//")
+	return trim
+}
+
+func extractHostFromPageURL(raw string) string {
+	trim := strings.TrimSpace(raw)
+	trim = strings.TrimPrefix(trim, "https://")
+	trim = strings.TrimPrefix(trim, "http://")
+	trim = strings.TrimPrefix(trim, "//")
+	parts := strings.SplitN(trim, "/", 2)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
+}
+
+func applyHostHint(pages []string, host string) []string {
+	if host == "" || len(pages) == 0 {
+		return pages
+	}
+	out := make([]string, 0, len(pages))
+	for _, page := range pages {
+		trim := strings.TrimSpace(page)
+		trim = strings.TrimPrefix(trim, "https://")
+		trim = strings.TrimPrefix(trim, "http://")
+		trim = strings.TrimPrefix(trim, "//")
+		slash := strings.Index(trim, "/")
+		if slash <= 0 {
+			out = append(out, page)
+			continue
+		}
+		out = append(out, "//"+host+trim[slash:])
+	}
+	return out
 }
 
 func firstNonEmpty(values ...string) string {

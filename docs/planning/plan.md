@@ -173,6 +173,7 @@
   - `GET /api/comics/{comicId}/chapters/{chapter}/pages`
 - `pages` 解析已支援第二項規則：可從章節頁 script 動態組圖邏輯還原全章圖片 URL。
 - `pages` parsing rule 已強化為動態模式：支援變數/函式名稱變動、decode index 變動、layout 變動（含從 script 反推 layout）。
+- 已補 offset 變體測試（`i*47+offset` 無括號）並修正 layout offset 擷取規則。
 - `chapters` 解析已加入 fallback（連結掃描 / script `chs` / 章節範圍文字）。
 - `meta` 標題解析已修正：`comicId=20133` 可取得 `太散漫了,堀田老師!`。
 - 前端已簡化：
