@@ -467,7 +467,7 @@ $('#pt,#ptb').append(' <small>第' + ch + '集</small><small> (' + ps + 'P)</sma
 
 第一張 img src 是 //img7.8comic.com/3/20636/1/001_FrA.jpg
 
-## 3.1 延續 3. 的規則，但提供更多範例
+## 4) Test cases
 
 | comic id | ch  | first pic url                           |
 | -------- | --- | --------------------------------------- |
@@ -477,36 +477,3 @@ $('#pt,#ptb').append(' <small>第' + ch + '集</small><small> (' + ps + 'P)</sma
 | 20133    | 1   | //img9.8comic.com/3/20133/1/001_48m.jpg |
 | 28556    | 1   | //img6.8comic.com/2/28556/1/001_4Hc.jpg |
 | 24758    | 1   | //img7.8comic.com/2/24758/1/001_ub3.jpg |
-
-## 3.2 目前後端實作規則（可讀版）
-
-以下為 `backend/main.go` 現行 pages parser 的實際規則：
-
-1. **先抓 script payload 與章節數**
-   - 優先抓固定 payload 變數；抓不到時，改用 decode function 反推出 payload 變數再取值。
-   - 章節數優先用 `chs`，再 fallback 到 `for` 迴圈上限，最後才用 `payload 長度 / 47`。
-
-2. **章節 key 正規化**
-   - `chapter` 允許 `-` 與尾碼 part（例如 `12a`）。
-   - 內部會拆成 `chRaw`（章）與 `part`（分段尾碼）。
-
-3. **layout 來源**
-   - 優先從 script 內 `xx(...)` 與迴圈變數對應關係動態推導 offset（chapter/folder/pages/seed）。
-   - 若推導失敗，依序套用內建多組 layout fallback。
-
-4. **目標章節資料挑選**
-   - 以 47 字元為一筆記錄掃描 payload。
-   - 命中 `chapterCode == chRaw`（且 part 條件符合）後，取得：
-     - `seed`（每頁 token 來源）
-     - `folderCode`（2 碼）
-     - `pageCount`（頁數）
-
-5. **URL 組裝（目前行為）**
-   - host 預設由 `imgPrefix + folderCode[0] + '.8comic.com'` 推導（實際為 `img{n}.8comic.com`）。
-   - 路徑第一層目錄使用 `folderCode[1]`。
-   - 每頁 URL 由 `//{host}/{dir}/{comicId}/{chapter}{part}/{nn}_{token}.{ext}` 組出（protocol-relative）。
-
-6. **first page hint 校正（3.1 對齊）**
-   - parser 會先嘗試所有可用 layout，產生多組候選 pages。
-   - 若 HTML 中能抓到第一張圖樣式（例如 `//img7.8comic.com/.../001_xxx.jpg`），會用它做比對與優先選擇。
-   - 若候選首圖仍未完全命中，但有抓到 hint host，會以 hint host 覆寫候選 URL host，避免出現 `img1`/`img7` 偏差。
