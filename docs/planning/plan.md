@@ -180,17 +180,24 @@
   - 移除來源與可選覆寫欄位（固定 8comic 流程）。
   - comic title 改由 metadata 自動取得，不需手動輸入。
   - 按「閱讀」會以當前選定章節開啟，不覆蓋為舊進度章節。
- - 已新增更多 parser 測試案例（依 8comic-source-rules-template 3.1 擴充），覆蓋多種動態 payload/layout/host 組合。
+- 已新增更多 parser 測試案例（依 8comic-source-rules-template 3.1 擴充），覆蓋多種動態 payload/layout/host 組合。
+- **已修正 `inferLayoutFromScript` 的兩個 bug（本輪）：**
+  - `psVarRegex` 改為要求首字為字母，避免匹配 `ps = 0;` 初始化而取得錯誤的 pageOffset。
+  - `payloadRegex` 最小長度從 200 降至 90，支援章節數少（≤2章）的漫畫。
+- **已通過 docs §4 全部 6 個 integration test cases（本輪）：**
+  - `21249/ch1`, `21163/ch1`, `26304/ch1`, `20133/ch1`, `28556/ch1`, `24758/ch1`
+  - 每筆第一頁 URL 精確吻合，且 HEAD 請求均回傳 HTTP 200（無 404）。
+  - Integration test 以 `//go:build integration` tag 保存於 `backend/integration_test.go`，執行方式：`go test -tags integration -v -run TestSection4Cases -timeout 120s`。
 
 ### 尚未完成項目
 1. `GET /api/comics/{comicId}/chapters/{chapter}/meta` 尚未實作（目前主要直接回 pages）。
 2. 章節標題目前部分情況仍使用「第 N 集」推導，尚未完整對齊來源標題。
 3. 來源解析失敗時的錯誤分類與診斷資訊仍可再細化。
-4. 缺少固定樣本的端對端回歸驗證流程（source 規則變動時預警不足）。
+4. 前端與後端端對端流程尚待完整驗證。
 
 ### 可優化功能
 1. **章節標題準確率**：加入 script 變數與 DOM 雙路徑解析，提升標題品質。
 2. **可觀測性**：為 parser/fallback 加上結構化日誌與錯誤代碼。
 3. **前端容錯 UX**：章節或頁面載入失敗時，提供重試與明確操作提示。
-4. **驗證自動化**：建立 `comicId/ch` 樣本回歸測試，降低網站變更風險。
+4. **驗證自動化**：已有 integration test 骨架，可持續擴充樣本回歸測試。
 5. **效能**：對已解析的 meta/chapters 進行短時快取，減少重複抓取。
