@@ -1,7 +1,8 @@
-set shell := ["pwsh.exe", "-NoLogo", "-Command"]
+set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 set dotenv-load := true
 
 compose := "docker compose"
+backend-bin := if os() == "windows" { "backend.exe" } else { "backend" }
 
 default: help
 
@@ -30,7 +31,7 @@ test-backend:
 build: build-backend build-frontend
 
 build-backend:
-  cd backend; go build -o backend.exe .
+  cd backend; go build -o {{backend-bin}} .
 
 build-frontend:
   cd frontend; npm run build -- --configuration production
@@ -41,8 +42,13 @@ docker-build:
 up:
   {{compose}} up -d --build
 
+[windows]
 up-custom frontend_port backend_port:
   $env:FRONTEND_PORT="{{frontend_port}}"; $env:BACKEND_PORT="{{backend_port}}"; {{compose}} up -d --build
+
+[unix]
+up-custom frontend_port backend_port:
+  FRONTEND_PORT="{{frontend_port}}" BACKEND_PORT="{{backend_port}}" {{compose}} up -d --build
 
 down:
   {{compose}} down
