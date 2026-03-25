@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ComicProviderService } from './comic-provider.service';
 import { ChapterItem, Comic, ReadingProgress } from './models';
 import { StorageService } from './storage.service';
+import { UpdateService } from './update.service';
 
 @Component({
   selector: 'app-root',
@@ -36,6 +37,8 @@ export class AppComponent {
 
   loading = signal(false);
   error = signal('');
+  zoomLevel = signal(1.0);
+  zoomLabel = computed(() => `${Math.round(this.zoomLevel() * 100)}%`);
   currentChapterIndex = computed(() => this.comicChapters().findIndex((c) => c.id === this.currentChapter()));
   hasPrevChapter = computed(() => this.currentChapterIndex() > 0);
   hasNextChapter = computed(() => {
@@ -47,6 +50,8 @@ export class AppComponent {
 
   readonly scrollReaderEl = viewChild<ElementRef<HTMLDivElement>>('scrollReader');
 
+  readonly updateService = inject(UpdateService);
+
   constructor(
     private readonly storage: StorageService,
     private readonly providerService: ComicProviderService,
@@ -55,12 +60,16 @@ export class AppComponent {
     this.progressMap.set(storage.loadProgressMap());
     this.restoreFromUrl();
 
-    // Non-passive wheel listener: one page per scroll tick
+    // Non-passive wheel listener: one page per scroll tick, Ctrl+scroll to zoom
     effect((onCleanup) => {
       const el = this.scrollReaderEl()?.nativeElement;
       if (!el) return;
       const handler = (e: WheelEvent) => {
         e.preventDefault();
+        if (e.ctrlKey) {
+          e.deltaY > 0 ? this.zoomOut() : this.zoomIn();
+          return;
+        }
         if (this.isScrolling) return;
         this.isScrolling = true;
         this.scrollToPageIndex(this.currentPageIndex() + (e.deltaY > 0 ? 1 : -1));
@@ -118,6 +127,7 @@ export class AppComponent {
     this.currentComic.set(comic);
     this.currentChapter.set(saved?.chapter ?? comic.chapter);
     this.currentPageIndex.set(saved?.pageIndex ?? 0);
+    this.zoomLevel.set(saved?.zoom ?? 1.0);
     this.showChapterPicker.set(false);
     this.showPanel.set(false);
     if (switchingComic) this.comicChapters.set([]);
@@ -134,6 +144,21 @@ export class AppComponent {
     this.currentChapter.set(chapterId);
     this.currentPageIndex.set(0);
     this.loadPages();
+  }
+
+  zoomIn(): void {
+    this.zoomLevel.update((z) => Math.min(3.0, Math.round((z + 0.1) * 10) / 10));
+    this.saveProgress();
+  }
+
+  zoomOut(): void {
+    this.zoomLevel.update((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
+    this.saveProgress();
+  }
+
+  resetZoom(): void {
+    this.zoomLevel.set(1.0);
+    this.saveProgress();
   }
 
   prevChapter(): void {
@@ -258,6 +283,7 @@ export class AppComponent {
       comicId: comic.id,
       chapter: this.currentChapter(),
       pageIndex: this.currentPageIndex(),
+      zoom: this.zoomLevel(),
       updatedAt: new Date().toISOString(),
     };
     this.progressMap.update((map) => ({ ...map, [progress.comicId]: progress }));

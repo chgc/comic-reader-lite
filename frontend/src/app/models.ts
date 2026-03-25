@@ -9,6 +9,7 @@ export interface ReadingProgress {
   comicId: string;
   chapter: string;
   pageIndex: number;
+  zoom?: number;
   updatedAt: string;
 }
 

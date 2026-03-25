@@ -1,3 +1,11 @@
+<!-- Update banner: shown when a new version is ready -->
+@if (updateService.updateAvailable()) {
+  <div class="update-banner">
+    <span>🎉 有新版本可用！</span>
+    <button class="update-btn" (click)="updateService.applyUpdate()">立即更新</button>
+  </div>
+}
+
 <!-- Mobile floating button: only when no comic is open (reader header unavailable) -->
 @if (!currentComic()) {
   <button class="panel-toggle" (click)="showPanel.set(true)" aria-label="開啟選單">☰</button>
@@ -84,6 +92,11 @@
           <button class="btn-tool mobile-menu-btn" (click)="showPanel.set(true)" aria-label="選單">☰</button>
           <h2 class="reader-title">{{ currentComic()!.title }} — 第 {{ currentChapter() }} 集</h2>
           <div class="reader-toolbar">
+            <div class="zoom-controls">
+              <button class="btn-tool zoom-btn" (click)="zoomOut()" [disabled]="zoomLevel() <= 0.5" aria-label="縮小">－</button>
+              <button class="btn-tool zoom-label" (click)="resetZoom()" title="重設為 100%">{{ zoomLabel() }}</button>
+              <button class="btn-tool zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel() >= 3.0" aria-label="放大">＋</button>
+            </div>
             <button class="btn-tool" (click)="toggleChapterPicker()">☰ 章節</button>
           </div>
         </div>
@@ -111,7 +124,7 @@
       }
 
       @if (!loading() && pages().length > 0) {
-        <div class="scroll-reader" #scrollReader (scroll)="onScrollReaderScroll($event)">
+        <div class="scroll-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
           @for (url of pages(); track $index) {
             <div class="scroll-page-wrap">
               @defer (on viewport) {
