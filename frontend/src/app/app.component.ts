@@ -45,18 +45,14 @@ export class AppComponent {
   newComicId = '';
   newChapter = '1';
 
-  // ── Reader state ──────────────────────────────────────────────
   currentComic = signal<Comic | undefined>(undefined);
 
-  /** Chapter follows the comic: switching comic auto-settles to its entry chapter.
-   *  Loaded-progress chapters are applied explicitly (openComic / restoreFromUrl).
-   *  Manual sets (jumpToChapter, openComic, URL restore) keep the chosen value. */
+  /** Defaults to the comic's entry chapter; explicit sets (openComic/URL/jump) win. */
   currentChapter = linkedSignal<Comic | undefined, string>({
     source: this.currentComic,
     computation: (comic) => comic?.chapter ?? '1',
   });
 
-  // Chapter list for the picker — refetches automatically when the comic changes
   readonly comicChaptersResource = httpResource<ChaptersResponse>(() => {
     const comic = this.currentComic();
     return comic ? { url: `${this.apiBase}/comics/${comic.id}/chapters`, params: { provider: '8comic' } } : undefined;
@@ -66,7 +62,6 @@ export class AppComponent {
     this.comicChaptersResource.status() === 'error' ? [] : (this.comicChaptersResource.value()?.chapters ?? []),
   );
 
-  // Pages — reactive on comic + chapter: chapter switch refetches & cancels in-flight request
   readonly pagesResource = httpResource<PagesResponse>(() => {
     const comic = this.currentComic();
     if (!comic) return undefined;
@@ -87,12 +82,11 @@ export class AppComponent {
     return '載入失敗';
   });
 
-  // ── Add-comic draft form ──────────────────────────────────────
   private readonly draftComicId = signal('');
   private readonly draftFetchTick = signal(0);
   readonly comicInfoResource = resource<DraftInfo, DraftParams | undefined>({
     defaultValue: { chapters: [] as ChapterItem[] },
-    // Click-driven: fetchDraftChapters() sets the id (+tick) — typing alone doesn't fire requests
+    // click-driven: fetchDraftChapters() sets the id (+tick forces a re-fetch of the same id)
     params: () => {
       const id = this.draftComicId();
       return id ? { id, tick: this.draftFetchTick() } : undefined;
@@ -133,7 +127,7 @@ export class AppComponent {
     return idx >= 0 && idx < this.comicChapters().length - 1;
   });
 
-  private static readonly VIEWPORT_BUFFER = 2; // pages rendered on each side of the current one
+  private static readonly VIEWPORT_BUFFER = 2;
 
   private readonly apiBase = '/api';
 
@@ -143,9 +137,9 @@ export class AppComponent {
 
   readonly scrollReaderEl = viewChild<ElementRef<HTMLDivElement>>('scrollReader');
 
-  /** Desktop layout renders one fixed-height page per viewport → safe to virtualize the DOM */
+  /** desktop: one fixed-height page slot per viewport → safe to virtualize */
   readonly isDesktop = signal(false);
-  /** Height of one page slot in the desktop reader (px), kept in sync via ResizeObserver */
+  /** page slot height (px) */
   readonly viewportHeight = signal(0);
   readonly pageFrames = computed<PageFrame[]>(() => {
     const total = this.pages().length;
@@ -165,7 +159,7 @@ export class AppComponent {
   private readonly imgErrors = signal<Map<string, number>>(new Map());
   private static readonly MAX_IMG_RETRIES = 4;
 
-  /** src with cache-busting query when the image is being retried */
+  /** cache-busting query re-fetches failed images */
   imgSrc(url: string): string {
     const n = this.imgErrors().get(url) ?? 0;
     return n === 0 ? url : `${url}?r=${n}`;
@@ -175,7 +169,6 @@ export class AppComponent {
     return (this.imgErrors().get(url) ?? 0) >= AppComponent.MAX_IMG_RETRIES;
   }
 
-  /** called on <img> error — bumps the retry counter so [src] rebinds and re-fetches */
   onImgError(url: string): void {
     const attempts = (this.imgErrors().get(url) ?? 0) + 1;
     if (attempts > AppComponent.MAX_IMG_RETRIES) return;
@@ -185,7 +178,6 @@ export class AppComponent {
     });
   }
 
-  /** manual retry from the failure overlay — resets so the base URL is fetched again */
   retryImage(url: string): void {
     this.imgErrors.update((m) => {
       m.delete(url);
@@ -203,12 +195,10 @@ export class AppComponent {
     this.progressMap.set(storage.loadProgressMap());
     this.restoreFromUrl();
 
-    // Keep the desktop/mobile split in sync with the CSS breakpoint
     const mq = window.matchMedia('(min-width: 641px)');
     this.isDesktop.set(mq.matches);
     mq.addEventListener('change', (e) => this.isDesktop.set(e.matches));
 
-    // Restore scroll position after the browser has rendered the loaded pages
     afterNextRender(() => {
       if (this.pendingScrollRestore) {
         this.pendingScrollRestore = false;
@@ -216,7 +206,7 @@ export class AppComponent {
       }
     });
 
-    // When a chapter's pages resolve: clamp index, restore scroll, persist progress
+    // pages resolved: clamp index, restore scroll, persist progress
     effect(() => {
       if (this.pagesResource.status() !== 'resolved') return;
       const res = this.pagesResource.value();
@@ -226,11 +216,8 @@ export class AppComponent {
       this.saveProgress();
     });
 
-    // Desktop reader wiring. The one-viewport slot height is measured on ANY desktop
-    // reader element (the natural-flow fallback container is the same box), which flips
-    // the branch to the virtualized reader as soon as it is available.
-    // The wheel page-turn interceptor only attaches to the VIRTUALIZED reader — the
-    // natural-flow fallback keeps native scrolling.
+    // desktop: measure slot height on either reader (same box); wheel page-turn
+    // only on the virtualized one (fallback keeps native scrolling)
     effect((onCleanup) => {
       const el = this.scrollReaderEl()?.nativeElement;
       if (!el || !this.isDesktop()) return;
@@ -288,7 +275,6 @@ export class AppComponent {
     const comicId = this.newComicId.trim();
     if (!comicId) return;
     this.draftComicId.set(comicId);
-    // bump so repeated clicks on the same id re-fetch (resource params are memoized)
     this.draftFetchTick.update((t) => t + 1);
   }
 
@@ -304,8 +290,7 @@ export class AppComponent {
   openComic(comic: Comic): void {
     const saved = this.progressMap()[comic.id];
     this.currentComic.set(comic);
-    // Explicit override — linkedSignal gives the auto-reset default, this preserves the
-    // original "re-open at saved position" semantics (incl. clicking the same comic).
+    // explicit override: reopen at saved position
     this.currentChapter.set(saved?.chapter ?? comic.chapter);
     this.currentPageIndex.set(saved?.pageIndex ?? 0);
     this.zoomLevel.set(saved?.zoom ?? 1.0);
@@ -321,7 +306,6 @@ export class AppComponent {
     this.showChapterPicker.set(false);
     this.currentChapter.set(chapterId);
     this.currentPageIndex.set(0);
-    // pagesResource refetches automatically (param: currentChapter)
   }
 
   zoomIn(): void {
@@ -389,7 +373,7 @@ export class AppComponent {
       this.currentPageIndex.set(clamped);
       this.scheduleProgressSave();
     }
-    // Instant jump: smooth scroll fights with CSS scroll-snap and spams scroll events
+    // instant: smooth scroll fights scroll-snap and spams scroll events
     el.scrollTo({ top: clamped * el.clientHeight, behavior: 'auto' });
   }
 
@@ -458,7 +442,7 @@ export class AppComponent {
     this.activeTab.set('history');
     this.newComicId = '';
     this.newChapter = '1';
-    this.draftComicId.set(''); // clears the draft form (comicInfoResource goes idle)
+    this.draftComicId.set('');
   }
 
   private restoreScrollPosition(): void {

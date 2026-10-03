@@ -125,8 +125,7 @@
 
       @if (!loading() && pages().length > 0) {
         @if (isDesktop() && viewportHeight() > 0) {
-          <!-- Desktop: virtualized window — only pages near the current scroll position exist in the DOM
-               (previously every page of a long chapter was rendered as a wrapper div) -->
+          <!-- desktop: virtualized window -->
           <div class="scroll-reader viewport-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
             <div class="scroll-spacer" [style.height.px]="pages().length * viewportHeight()"></div>
             <div class="scroll-window">
@@ -136,8 +135,7 @@
                   [style.height.px]="viewportHeight()"
                   [style.transform]="'translateY(' + frame.offset + 'px)'"
                 >
-                  <!-- Eager (no loading=lazy): the virtualized window is only ~5 pages,
-                       and lazy+content-visibility can leave the first image un-triggered on some browsers -->
+                  <!-- eager: lazy+content-visibility left the first image un-triggered on some browsers -->
                   <img
                     [src]="imgSrc(frame.url)"
                     decoding="async"
@@ -156,8 +154,7 @@
             </div>
           </div>
         } @else {
-          <!-- Natural flow, always renders: mobile (document scroll), or desktop fallback when
-               the one-viewport slot measurement is unavailable (virtualization never blanks the page) -->
+          <!-- natural flow: mobile, or desktop fallback when slot measurement is unavailable -->
           <div
             class="scroll-reader natural-reader"
             [class.desktop-fallback]="isDesktop()"

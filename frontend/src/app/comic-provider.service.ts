@@ -9,7 +9,6 @@ export class ComicProviderService {
 
   constructor(private readonly http: HttpClient) {}
 
-  /** One-shot meta lookup used when adding a comic without fetching drafts first. */
   getMeta(comicId: string): Observable<ComicMetaResponse> {
     const params = new HttpParams().set('provider', '8comic');
     return this.http.get<ComicMetaResponse>(`${this.apiBase}/comics/${comicId}/meta`, { params });

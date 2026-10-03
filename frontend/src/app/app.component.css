@@ -358,7 +358,7 @@
   aspect-ratio: 2/3;
   margin-bottom: 4px;
   overflow: hidden;
-  /* Skip layout/paint of off-screen pages; keeps the box size so scroll length is unaffected */
+  /* skip off-screen layout; box size kept so scroll length stays stable */
   content-visibility: auto;
   contain-intrinsic-size: auto 600px;
 }
@@ -479,8 +479,7 @@
     overflow: hidden;
   }
 
-  /* Desktop fallback (natural flow) when virtualization measurement is unavailable.
-     The virtualized reader gets `.viewport-reader` (same container rules apply). */
+  /* desktop fallback container (same box as .viewport-reader) */
   .scroll-reader.viewport-reader,
   .natural-reader.desktop-fallback {
     flex: 1;
@@ -490,7 +489,7 @@
     position: relative;
   }
 
-  /* Virtualization: a spacer keeps the full scroll length, the window holds only nearby pages */
+  /* spacer keeps scroll length; window holds only nearby pages */
   .scroll-spacer {
     display: block;
     width: 100%;
@@ -498,8 +497,7 @@
   }
 
   .scroll-window {
-    /* Anchor to the scroll content top (bside the spacer in the flex column) so
-       translateY offsets match the page index. Must be absolute + height:0. */
+    /* anchor at scroll top — without absolute, the flex column places it after the spacer */
     position: absolute;
     top: 0;
     left: 0;

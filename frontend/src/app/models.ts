@@ -32,7 +32,6 @@ export interface ChaptersResponse {
 export interface PageFrame {
   index: number;
   url: string;
-  /** Vertical offset (px) from the top of the scroll container */
   offset: number;
 }
 
