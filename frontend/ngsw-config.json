@@ -28,6 +28,18 @@
   ],
   "dataGroups": [
     {
+      "name": "proxy-images",
+      "urls": [
+        "/api/img/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 300,
+        "maxAge": "7d",
+        "timeout": "10s",
+        "strategy": "performance"
+      }
+    },
+    {
       "name": "comic-images",
       "urls": [
         "https://img*.8comic.com/**",

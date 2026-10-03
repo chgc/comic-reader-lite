@@ -84,6 +84,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", healthHandler)
 	mux.HandleFunc("/api/comics/", comicsHandler)
+	mux.HandleFunc("/api/img/", imageProxyHandler)
 
 	addr := envOr("ADDR", ":8080")
 	server := &http.Server{
@@ -100,6 +101,73 @@ func main() {
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// imageProxyHandler streams CDN images through the backend. The browser's direct
+// fetches to img*.8comic.com fail intermittently (504s from the CDN edge / hotlink
+// policy), so the reader loads images from the app's own egress with the correct
+// Referer/UA, server-side retries and a public cache header.
+func imageProxyHandler(w http.ResponseWriter, r *http.Request) {
+	rest := strings.TrimPrefix(r.URL.Path, "/api/img/")
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		http.Error(w, "invalid image path", http.StatusBadRequest)
+		return
+	}
+	if !allowedImageHost(parts[0]) {
+		http.Error(w, "image host not allowed", http.StatusBadRequest)
+		return
+	}
+
+	src := "https://" + parts[0] + "/" + parts[1]
+	client := &http.Client{Timeout: 20 * time.Second}
+	referer := envOr("EIGHTCOMIC_REFERER", "https://www.8comic.com/")
+
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, src, nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0")
+		req.Header.Set("Referer", referer)
+
+		res, err := client.Do(req)
+		if err == nil && res.StatusCode >= 200 && res.StatusCode < 300 {
+			defer res.Body.Close()
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			if ct := res.Header.Get("Content-Type"); ct != "" {
+				w.Header().Set("Content-Type", ct)
+			}
+			_, _ = io.Copy(w, res.Body)
+			return
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			if res != nil {
+				res.Body.Close()
+			}
+			lastErr = fmt.Errorf("upstream status: %d", res.StatusCode)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	http.Error(w, lastErr.Error(), http.StatusBadGateway)
+}
+
+// allowedImageHost restricts proxied hosts to the image CDN and known fallbacks.
+var imgHostPattern = regexp.MustCompile(`^img\d+\.8comic\.com$`)
+
+func allowedImageHost(host string) bool {
+	if imgHostPattern.MatchString(host) {
+		return true
+	}
+	switch host {
+	case "www.8comic.com", "www.comicabc.com", "articles.onemoreplace.tw":
+		return true
+	}
+	return false
 }
 
 func comicsHandler(w http.ResponseWriter, r *http.Request) {

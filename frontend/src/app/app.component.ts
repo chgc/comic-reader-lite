@@ -162,10 +162,21 @@ export class AppComponent {
   private readonly imgErrors = signal<Map<string, number>>(new Map());
   private static readonly MAX_IMG_RETRIES = 4;
 
-  /** cache-busting query re-fetches failed images */
+  /** images go through the backend proxy: proper Referer + server egress + retry;
+   *  a cache-busting query re-fetches failed images */
   imgSrc(url: string): string {
     const n = this.imgErrors().get(url) ?? 0;
-    return n === 0 ? url : `${url}?r=${n}`;
+    const base = this.proxyUrl(url);
+    return n === 0 ? base : `${base}?r=${n}`;
+  }
+
+  /** rewrite //imgN.8comic.com/path → /api/img/imgN.8comic.com/path */
+  private proxyUrl(url: string): string {
+    if (url.startsWith('/api/')) return url;
+    const clean = url.replace(/^[a-z]+:\/\//i, '').replace(/^\/\//, '');
+    const slash = clean.indexOf('/');
+    if (slash <= 0) return url;
+    return `/api/img/${clean.slice(0, slash)}${clean.slice(slash)}`;
   }
 
   imgFailed(url: string): boolean {
