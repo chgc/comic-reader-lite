@@ -238,42 +238,6 @@ export class AppComponent {
       this.currentPageIndex.update((pi) => Math.min(pi, res.pages.length - 1));
       this.pendingScrollRestore = this.currentPageIndex() > 0;
       this.saveProgress();
-      // temp diagnostic: reader state when a chapter resolves
-      console.log('[reader]', JSON.stringify({
-        vh: this.viewportHeight(),
-        virtual: this.isDesktop() && this.viewportHeight() > 0,
-        pages: res.pages.length,
-      }));
-      // temp diagnostic: geometry snapshot 2.5s after a chapter resolves
-      setTimeout(() => {
-        const el = this.scrollReaderEl()?.nativeElement;
-        if (!el) return;
-        const imgs = [...el.querySelectorAll('img')];
-        const wrap = el.querySelector('.viewport-wrap') as HTMLElement | null;
-        const first = imgs.find((i) => i.getBoundingClientRect().width > 0) ?? imgs[0];
-        const r = first?.getBoundingClientRect();
-        const er = el.getBoundingClientRect();
-        const wrapCs = wrap ? getComputedStyle(wrap) : null;
-        console.log('[reader-audit]', JSON.stringify({
-          win: `${window.innerWidth}x${window.innerHeight}`,
-          dpr: window.devicePixelRatio,
-          mm641: window.matchMedia('(min-width: 641px)').matches,
-          branch: el.classList.contains('viewport-reader') ? 'virtual' : 'natural',
-          elRect: { x: Math.round(er.x), y: Math.round(er.y), w: Math.round(er.width), h: Math.round(er.height) },
-          scrollTop: Math.round(el.scrollTop),
-          scrollH: Math.round(el.scrollHeight),
-          wrapTransform: wrapCs?.transform ?? null,
-          zoomVar: wrapCs?.getPropertyValue('--zoom').trim() ?? null,
-          imgs: imgs.length,
-          loaded: imgs.filter((i) => i.complete && i.naturalWidth > 0).length,
-          pending: imgs.filter((i) => !i.complete).length,
-          errored: imgs.filter((i) => i.complete && i.naturalWidth === 0).length,
-          overlays: el.querySelectorAll('.img-error-overlay').length,
-          first: r
-            ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), nat: `${first.naturalWidth}x${first.naturalHeight}` }
-            : null,
-        }));
-      }, 2500);
     });
 
     // desktop: measure slot height on either reader (same box); wheel page-turn
