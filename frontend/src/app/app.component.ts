@@ -1,9 +1,32 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  linkedSignal,
+  resource,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ComicProviderService } from './comic-provider.service';
-import { ChapterItem, Comic, PageFrame, ReadingProgress } from './models';
+import { ChapterItem, ChaptersResponse, Comic, ComicMetaResponse, PageFrame, PagesResponse, ReadingProgress } from './models';
 import { StorageService } from './storage.service';
 import { UpdateService } from './update.service';
+
+interface DraftInfo {
+  chapters: ChapterItem[];
+  meta?: ComicMetaResponse;
+}
+
+interface DraftParams {
+  id: string;
+  tick: number;
+}
 
 @Component({
   selector: 'app-root',
@@ -19,24 +42,88 @@ export class AppComponent {
   comics = signal<Comic[]>([]);
   progressMap = signal<Record<string, ReadingProgress>>({});
 
-  draftChapters = signal<ChapterItem[]>([]);
-  draftComicTitle = signal('');
-  chapterError = signal('');
-
   newComicId = '';
   newChapter = '1';
 
+  // ── Reader state ──────────────────────────────────────────────
   currentComic = signal<Comic | undefined>(undefined);
-  currentChapter = signal('1');
-  comicChapters = signal<ChapterItem[]>([]);
-  pages = signal<string[]>([]);
+
+  /** Chapter follows the comic: switching comic auto-settles to its entry chapter.
+   *  Loaded-progress chapters are applied explicitly (openComic / restoreFromUrl).
+   *  Manual sets (jumpToChapter, openComic, URL restore) keep the chosen value. */
+  currentChapter = linkedSignal<Comic | undefined, string>({
+    source: this.currentComic,
+    computation: (comic) => comic?.chapter ?? '1',
+  });
+
+  // Chapter list for the picker — refetches automatically when the comic changes
+  readonly comicChaptersResource = httpResource<ChaptersResponse>(() => {
+    const comic = this.currentComic();
+    return comic ? { url: `${this.apiBase}/comics/${comic.id}/chapters`, params: { provider: '8comic' } } : undefined;
+  });
+  // NOTE: resource.value() RE-THROWS the loader error when status is 'error' — always gate on status first
+  readonly comicChapters = computed(() =>
+    this.comicChaptersResource.status() === 'error' ? [] : (this.comicChaptersResource.value()?.chapters ?? []),
+  );
+
+  // Pages — reactive on comic + chapter: chapter switch refetches & cancels in-flight request
+  readonly pagesResource = httpResource<PagesResponse>(() => {
+    const comic = this.currentComic();
+    if (!comic) return undefined;
+    return {
+      url: `${this.apiBase}/comics/${comic.id}/chapters/${this.currentChapter()}/pages`,
+      params: { provider: '8comic' },
+    };
+  });
+  readonly pages = computed(() => (this.pagesResource.status() === 'error' ? [] : (this.pagesResource.value()?.pages ?? [])));
+  readonly loading = this.pagesResource.isLoading;
+  readonly error = computed(() => {
+    if (this.pagesResource.status() !== 'error') return '';
+    const e = this.pagesResource.error();
+    if (!e) return '載入失敗';
+    if (e instanceof HttpErrorResponse) {
+      return typeof e.error === 'string' && e.error ? e.error : `載入失敗 (${e.status})`;
+    }
+    return '載入失敗';
+  });
+
+  // ── Add-comic draft form ──────────────────────────────────────
+  private readonly draftComicId = signal('');
+  private readonly draftFetchTick = signal(0);
+  readonly comicInfoResource = resource<DraftInfo, DraftParams | undefined>({
+    defaultValue: { chapters: [] as ChapterItem[] },
+    // Click-driven: fetchDraftChapters() sets the id (+tick) — typing alone doesn't fire requests
+    params: () => {
+      const id = this.draftComicId();
+      return id ? { id, tick: this.draftFetchTick() } : undefined;
+    },
+    loader: async ({ params, abortSignal }) => {
+      const [chapters, meta] = await Promise.all([
+        this.fetchJson<ChaptersResponse>(`${this.apiBase}/comics/${params.id}/chapters?provider=8comic`, abortSignal),
+        this.fetchJson<ComicMetaResponse>(`${this.apiBase}/comics/${params.id}/meta?provider=8comic`, abortSignal).catch(
+          () => undefined,
+        ),
+      ]);
+      return { chapters: chapters.chapters, meta };
+    },
+  });
+  readonly draftChapters = computed(() =>
+    this.comicInfoResource.status() === 'error' ? [] : (this.comicInfoResource.value()?.chapters ?? []),
+  );
+  readonly draftComicTitle = computed(() =>
+    this.comicInfoResource.status() === 'error' ? '' : (this.comicInfoResource.value()?.meta?.title?.trim() ?? ''),
+  );
+  readonly chapterError = computed(() => {
+    if (this.comicInfoResource.status() !== 'error') return '';
+    const e = this.comicInfoResource.error();
+    return e instanceof Error ? e.message : '章節載入失敗';
+  });
+
   currentPageIndex = signal(0);
   activeTab = signal<'add' | 'history'>('history');
   showPanel = signal(false);
   showChapterPicker = signal(false);
 
-  loading = signal(false);
-  error = signal('');
   zoomLevel = signal(1.0);
   zoomLabel = computed(() => `${Math.round(this.zoomLevel() * 100)}%`);
   currentChapterIndex = computed(() => this.comicChapters().findIndex((c) => c.id === this.currentChapter()));
@@ -48,9 +135,9 @@ export class AppComponent {
 
   private static readonly VIEWPORT_BUFFER = 2; // pages rendered on each side of the current one
 
+  private readonly apiBase = '/api';
+
   private isScrolling = false;
-  private pagesRequestSeq = 0;
-  private draftRequestSeq = 0;
   private progressSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingScrollRestore = false;
 
@@ -98,6 +185,16 @@ export class AppComponent {
       }
     });
 
+    // When a chapter's pages resolve: clamp index, restore scroll, persist progress
+    effect(() => {
+      if (this.pagesResource.status() !== 'resolved') return;
+      const res = this.pagesResource.value();
+      if (!res) return;
+      this.currentPageIndex.update((pi) => Math.min(pi, res.pages.length - 1));
+      this.pendingScrollRestore = this.currentPageIndex() > 0;
+      this.saveProgress();
+    });
+
     // Non-passive wheel listener: one page per scroll tick, Ctrl+scroll to zoom
     effect((onCleanup) => {
       const el = this.scrollReaderEl()?.nativeElement;
@@ -134,9 +231,15 @@ export class AppComponent {
 
   addComic(): void {
     const comicId = this.newComicId.trim();
-    const chapter = this.newChapter.trim() || this.draftChapters()[0]?.id || '1';
+    const draft = this.draftChapters();
+    const chapterInput = this.newChapter.trim();
+    const chapter = (draft.some((c) => c.id === chapterInput) ? chapterInput : draft[0]?.id) || '1';
     if (!comicId || !chapter) return;
-    const fallbackTitle = this.draftComicTitle().trim() || comicId;
+    if (this.draftComicId() === comicId && this.draftComicTitle()) {
+      this.persistComic(comicId, chapter, this.draftComicTitle().trim());
+      return;
+    }
+    const fallbackTitle = comicId;
     this.providerService.getMeta(comicId).subscribe({
       next: (meta) => this.persistComic(comicId, chapter, meta.title?.trim() || fallbackTitle),
       error: () => this.persistComic(comicId, chapter, fallbackTitle),
@@ -146,28 +249,9 @@ export class AppComponent {
   fetchDraftChapters(): void {
     const comicId = this.newComicId.trim();
     if (!comicId) return;
-    const seq = ++this.draftRequestSeq;
-    this.chapterError.set('');
-    this.providerService.getChapters(comicId).subscribe({
-      next: (res) => {
-        if (seq !== this.draftRequestSeq) return; // stale response
-        this.draftChapters.set(res.chapters);
-        if (res.chapters.length > 0) this.newChapter = res.chapters[0].id;
-      },
-      error: (err) => {
-        if (seq !== this.draftRequestSeq) return;
-        this.draftChapters.set([]);
-        this.chapterError.set(err?.error ?? '章節載入失敗');
-      },
-    });
-    this.providerService.getMeta(comicId).subscribe({
-      next: (meta) => {
-        if (seq === this.draftRequestSeq) this.draftComicTitle.set(meta.title?.trim() || '');
-      },
-      error: () => {
-        if (seq === this.draftRequestSeq) this.draftComicTitle.set('');
-      },
-    });
+    this.draftComicId.set(comicId);
+    // bump so repeated clicks on the same id re-fetch (resource params are memoized)
+    this.draftFetchTick.update((t) => t + 1);
   }
 
   removeComic(comicId: string): void {
@@ -175,23 +259,20 @@ export class AppComponent {
     this.storage.saveLibrary(this.comics());
     if (this.currentComic()?.id === comicId) {
       this.currentComic.set(undefined);
-      this.pages.set([]);
       this.updateUrl();
     }
   }
 
   openComic(comic: Comic): void {
     const saved = this.progressMap()[comic.id];
-    const switchingComic = this.currentComic()?.id !== comic.id;
     this.currentComic.set(comic);
+    // Explicit override — linkedSignal gives the auto-reset default, this preserves the
+    // original "re-open at saved position" semantics (incl. clicking the same comic).
     this.currentChapter.set(saved?.chapter ?? comic.chapter);
     this.currentPageIndex.set(saved?.pageIndex ?? 0);
     this.zoomLevel.set(saved?.zoom ?? 1.0);
     this.showChapterPicker.set(false);
     this.showPanel.set(false);
-    if (switchingComic) this.comicChapters.set([]);
-    this.loadChaptersForComic(comic.id);
-    this.loadPages();
   }
 
   toggleChapterPicker(): void {
@@ -202,7 +283,7 @@ export class AppComponent {
     this.showChapterPicker.set(false);
     this.currentChapter.set(chapterId);
     this.currentPageIndex.set(0);
-    this.loadPages();
+    // pagesResource refetches automatically (param: currentChapter)
   }
 
   zoomIn(): void {
@@ -285,16 +366,14 @@ export class AppComponent {
   private restoreFromUrl(): void {
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
-    const ch = params.get('ch');
     if (!id) return;
     const comic = this.comics().find((c) => c.id === id);
     if (!comic) return;
     const saved = this.progressMap()[id];
     this.currentComic.set(comic);
-    this.currentChapter.set(ch ?? comic.chapter);
+    this.currentChapter.set(params.get('ch') ?? saved?.chapter ?? comic.chapter);
     this.currentPageIndex.set(saved?.pageIndex ?? 0);
-    this.loadChaptersForComic(comic.id);
-    this.loadPages();
+    this.zoomLevel.set(saved?.zoom ?? 1.0);
   }
 
   private updateUrl(): void {
@@ -305,51 +384,6 @@ export class AppComponent {
     }
     const params = new URLSearchParams({ id: comic.id, ch: this.currentChapter() });
     history.replaceState(null, '', `?${params}`);
-  }
-
-  private loadChaptersForComic(comicId: string): void {
-    // Re-use draft chapters if we just added this comic
-    if (this.draftChapters().length > 0 && this.comicChapters().length === 0) {
-      this.comicChapters.set(this.draftChapters());
-      return;
-    }
-    if (this.comicChapters().length > 0) return;
-    this.providerService.getChapters(comicId).subscribe({
-      next: (res) => this.comicChapters.set(res.chapters),
-      error: () => this.comicChapters.set([]),
-    });
-  }
-
-  private loadPages(): void {
-    const comic = this.currentComic();
-    if (!comic) return;
-    const seq = ++this.pagesRequestSeq;
-    this.loading.set(true);
-    this.error.set('');
-    this.providerService.getPages(comic.id, this.currentChapter()).subscribe({
-      next: (res) => {
-        if (seq !== this.pagesRequestSeq) return; // stale response (user already switched chapter)
-        this.pages.set(res.pages);
-        if (this.currentPageIndex() >= this.pages().length) {
-          this.currentPageIndex.set(0);
-          this.scrollReaderEl()?.nativeElement.scrollTo({ top: 0 });
-        }
-        this.saveProgress();
-        this.loading.set(false);
-        this.pendingScrollRestore = this.currentPageIndex() > 0;
-      },
-      error: (err) => {
-        if (seq !== this.pagesRequestSeq) return;
-        this.error.set(err?.error ?? '載入失敗');
-        this.loading.set(false);
-      },
-    });
-  }
-
-  private restoreScrollPosition(): void {
-    const el = this.scrollReaderEl()?.nativeElement;
-    if (!el) return;
-    el.scrollTop = this.currentPageIndex() * el.clientHeight;
   }
 
   private saveProgress(): void {
@@ -364,7 +398,6 @@ export class AppComponent {
     };
     this.progressMap.update((map) => ({ ...map, [progress.comicId]: progress }));
     this.storage.saveProgress(progress);
-    // Bug 1: keep comics list chapter in sync
     this.comics.update((list) =>
       list.map((c) => (c.id === progress.comicId ? { ...c, chapter: progress.chapter } : c)),
     );
@@ -384,13 +417,29 @@ export class AppComponent {
     this.currentComic.set(comic);
     this.currentChapter.set(chapter);
     this.currentPageIndex.set(0);
-    // Carry over draft chapters so chapter nav works immediately
-    this.comicChapters.set(this.draftChapters());
-    this.loadPages();
     this.activeTab.set('history');
     this.newComicId = '';
     this.newChapter = '1';
-    this.draftComicTitle.set('');
-    this.draftChapters.set([]);
+    this.draftComicId.set(''); // clears the draft form (comicInfoResource goes idle)
+  }
+
+  private restoreScrollPosition(): void {
+    const el = this.scrollReaderEl()?.nativeElement;
+    if (!el) return;
+    el.scrollTop = this.currentPageIndex() * el.clientHeight;
+  }
+
+  private async fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+      let msg: string;
+      try {
+        msg = (await res.text()).trim() || `HTTP ${res.status}`;
+      } catch {
+        msg = `HTTP ${res.status}`;
+      }
+      throw new Error(msg);
+    }
+    return res.json() as Promise<T>;
   }
 }
