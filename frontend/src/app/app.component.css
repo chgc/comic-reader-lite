@@ -525,6 +525,9 @@
     height: auto;
     max-width: 100%;
     max-height: 100%;
+    /* zoom lives on the wrap (.viewport-wrap scale) — an img-owned transform layer
+       plus async decode can remain unpainted until the next repaint on some browsers */
+    transform: none;
   }
 }
 

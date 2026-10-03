@@ -183,6 +183,16 @@ export class AppComponent {
     return (this.imgErrors().get(url) ?? 0) >= AppComponent.MAX_IMG_RETRIES;
   }
 
+  /** repaint nudge: Chromium can skip painting a just-loaded img until the next
+   *  invalidation (scroll). A tiny opacity toggle forces the layer to repaint. */
+  onImgLoad(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    img.style.opacity = '0.999';
+    requestAnimationFrame(() => {
+      img.style.opacity = '';
+    });
+  }
+
   onImgError(url: string): void {
     const attempts = (this.imgErrors().get(url) ?? 0) + 1;
     if (attempts > AppComponent.MAX_IMG_RETRIES) {

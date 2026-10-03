@@ -133,12 +133,15 @@
                 <div
                   class="scroll-page-wrap viewport-wrap"
                   [style.height.px]="viewportHeight()"
-                  [style.transform]="'translateY(' + frame.offset + 'px)'"
+                  [style.transform]="'translateY(' + frame.offset + 'px) scale(var(--zoom, 1))'"
                 >
-                  <!-- eager: lazy+content-visibility left the first image un-triggered on some browsers -->
+                  <!-- eager: lazy+content-visibility left the first image un-triggered on some browsers.
+                       Zoom scales the wrap, NOT the img — an img-owned transform layer plus async decode
+                       can stay unpainted until the next repaint in some Chromium versions. -->
                   <img
                     [src]="imgSrc(frame.url)"
                     decoding="async"
+                    (load)="onImgLoad($event)"
                     (error)="onImgError(frame.url)"
                     [alt]="'第 ' + (frame.index + 1) + ' 頁'"
                     class="scroll-page-img"
@@ -169,6 +172,7 @@
                   [src]="imgSrc(url)"
                   loading="lazy"
                   decoding="async"
+                  (load)="onImgLoad($event)"
                   (error)="onImgError(url)"
                   [alt]="'第 ' + ($index + 1) + ' 頁'"
                   class="scroll-page-img"
