@@ -244,6 +244,27 @@ export class AppComponent {
         virtual: this.isDesktop() && this.viewportHeight() > 0,
         pages: res.pages.length,
       }));
+      // temp diagnostic: what actually happened to the <img> elements 2.5s later
+      setTimeout(() => {
+        const el = this.scrollReaderEl()?.nativeElement;
+        if (!el) return;
+        const imgs = [...el.querySelectorAll('img')];
+        console.log('[reader-audit]', JSON.stringify({
+          imgs: imgs.length,
+          loaded: imgs.filter((i) => i.complete && i.naturalWidth > 0).length,
+          pending: imgs.filter((i) => !i.complete).length,
+          errored: imgs.filter((i) => i.complete && i.naturalWidth === 0).length,
+          overlays: el.querySelectorAll('.img-error-overlay').length,
+          virtual: el.classList.contains('viewport-reader'),
+          firstVisible: (() => {
+            for (const img of imgs) {
+              const r = img.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight) return { w: Math.round(r.width), h: Math.round(r.height) };
+            }
+            return null;
+          })(),
+        }));
+      }, 2500);
     });
 
     // desktop: measure slot height on either reader (same box); wheel page-turn
@@ -264,6 +285,11 @@ export class AppComponent {
         onCleanup(() => ro.disconnect());
         return;
       }
+
+      // first-paint nudge: some Chromium versions skip painting the reader until
+      // the first scroll — toggle a class in the next frame to force a recalc/repaint
+      requestAnimationFrame(() => el.classList.add('repaint'));
+      requestAnimationFrame(() => el.classList.remove('repaint'));
 
       const handler = (e: WheelEvent) => {
         e.preventDefault();
