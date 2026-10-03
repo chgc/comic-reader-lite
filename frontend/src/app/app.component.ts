@@ -244,25 +244,34 @@ export class AppComponent {
         virtual: this.isDesktop() && this.viewportHeight() > 0,
         pages: res.pages.length,
       }));
-      // temp diagnostic: what actually happened to the <img> elements 2.5s later
+      // temp diagnostic: geometry snapshot 2.5s after a chapter resolves
       setTimeout(() => {
         const el = this.scrollReaderEl()?.nativeElement;
         if (!el) return;
         const imgs = [...el.querySelectorAll('img')];
+        const wrap = el.querySelector('.viewport-wrap') as HTMLElement | null;
+        const first = imgs.find((i) => i.getBoundingClientRect().width > 0) ?? imgs[0];
+        const r = first?.getBoundingClientRect();
+        const er = el.getBoundingClientRect();
+        const wrapCs = wrap ? getComputedStyle(wrap) : null;
         console.log('[reader-audit]', JSON.stringify({
+          win: `${window.innerWidth}x${window.innerHeight}`,
+          dpr: window.devicePixelRatio,
+          mm641: window.matchMedia('(min-width: 641px)').matches,
+          branch: el.classList.contains('viewport-reader') ? 'virtual' : 'natural',
+          elRect: { x: Math.round(er.x), y: Math.round(er.y), w: Math.round(er.width), h: Math.round(er.height) },
+          scrollTop: Math.round(el.scrollTop),
+          scrollH: Math.round(el.scrollHeight),
+          wrapTransform: wrapCs?.transform ?? null,
+          zoomVar: wrapCs?.getPropertyValue('--zoom').trim() ?? null,
           imgs: imgs.length,
           loaded: imgs.filter((i) => i.complete && i.naturalWidth > 0).length,
           pending: imgs.filter((i) => !i.complete).length,
           errored: imgs.filter((i) => i.complete && i.naturalWidth === 0).length,
           overlays: el.querySelectorAll('.img-error-overlay').length,
-          virtual: el.classList.contains('viewport-reader'),
-          firstVisible: (() => {
-            for (const img of imgs) {
-              const r = img.getBoundingClientRect();
-              if (r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight) return { w: Math.round(r.width), h: Math.round(r.height) };
-            }
-            return null;
-          })(),
+          first: r
+            ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), nat: `${first.naturalWidth}x${first.naturalHeight}` }
+            : null,
         }));
       }, 2500);
     });
