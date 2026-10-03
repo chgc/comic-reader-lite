@@ -1,9 +1,9 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
-import { interval } from 'rxjs';
+import { fromEvent, interval } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
-const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour (was 6h — checks are cheap, just ngsw.json)
 
 @Injectable({ providedIn: 'root' })
 export class UpdateService {
@@ -20,10 +20,20 @@ export class UpdateService {
 
     this.swUpdate.unrecoverable.subscribe(() => document.location.reload());
 
-    interval(UPDATE_CHECK_INTERVAL_MS).subscribe(() => this.swUpdate.checkForUpdate());
+    // Proactive checks: on app start, when the tab regains focus, and periodically.
+    // checkForUpdate() rejects until the service worker is registered/active — ignore those.
+    this.checkForUpdate();
+    fromEvent(document, 'visibilitychange').subscribe(() => {
+      if (document.visibilityState === 'visible') this.checkForUpdate();
+    });
+    interval(UPDATE_CHECK_INTERVAL_MS).subscribe(() => this.checkForUpdate());
   }
 
   applyUpdate(): void {
     this.swUpdate.activateUpdate().then(() => document.location.reload());
+  }
+
+  private checkForUpdate(): void {
+    this.swUpdate.checkForUpdate().catch(() => undefined);
   }
 }

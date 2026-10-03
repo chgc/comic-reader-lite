@@ -43,7 +43,7 @@
     {
       "name": "api",
       "urls": [
-        "http://localhost:8080/api/**"
+        "/api/**"
       ],
       "cacheConfig": {
         "maxSize": 50,

@@ -124,17 +124,52 @@
       }
 
       @if (!loading() && pages().length > 0) {
-        <div class="scroll-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
-          @for (url of pages(); track $index) {
-            <div class="scroll-page-wrap">
-              @defer (on viewport) {
-                <img [src]="url" loading="lazy" [alt]="'第 ' + ($index + 1) + ' 頁'" class="scroll-page-img" />
-              } @placeholder {
-                <div class="scroll-page-placeholder"></div>
+        @if (isDesktop()) {
+          <!-- Desktop: virtualized window — only pages near the current scroll position exist in the DOM
+               (previously every page of a long chapter was rendered as a wrapper div) -->
+          <div class="scroll-reader viewport-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
+            <div class="scroll-spacer" [style.height.px]="pages().length * viewportHeight()"></div>
+            <div class="scroll-window">
+              @for (frame of pageFrames(); track frame.index) {
+                <div
+                  class="scroll-page-wrap viewport-wrap"
+                  [style.height.px]="viewportHeight()"
+                  [style.transform]="'translateY(' + frame.offset + 'px)'"
+                >
+                  <!-- Eager (no loading=lazy): the virtualized window is only ~5 pages,
+                       and lazy+content-visibility can leave the first image un-triggered on some browsers -->
+                  <img
+                    [src]="frame.url"
+                    decoding="async"
+                    [attr.fetchpriority]="frame.index === 0 ? 'high' : 'auto'"
+                    [alt]="'第 ' + (frame.index + 1) + ' 頁'"
+                    class="scroll-page-img"
+                  />
+                </div>
               }
             </div>
-          }
-        </div>
+          </div>
+        } @else {
+          <!-- Mobile: natural flow with lazy placeholders -->
+          <div class="scroll-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
+            @for (url of pages(); track $index) {
+              <div class="scroll-page-wrap">
+                @defer (on viewport) {
+                  <img
+                    [src]="url"
+                    loading="lazy"
+                    decoding="async"
+                    [attr.fetchpriority]="$first ? 'high' : 'auto'"
+                    [alt]="'第 ' + ($index + 1) + ' 頁'"
+                    class="scroll-page-img"
+                  />
+                } @placeholder {
+                  <div class="scroll-page-placeholder"></div>
+                }
+              </div>
+            }
+          </div>
+        }
       }
 
       <div class="chapter-nav">

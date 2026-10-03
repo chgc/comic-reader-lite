@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ComicProviderService } from './comic-provider.service';
-import { ChapterItem, Comic, ReadingProgress } from './models';
+import { ChapterItem, Comic, PageFrame, ReadingProgress } from './models';
 import { StorageService } from './storage.service';
 import { UpdateService } from './update.service';
 
@@ -46,9 +46,34 @@ export class AppComponent {
     return idx >= 0 && idx < this.comicChapters().length - 1;
   });
 
+  private static readonly VIEWPORT_BUFFER = 2; // pages rendered on each side of the current one
+
   private isScrolling = false;
+  private pagesRequestSeq = 0;
+  private draftRequestSeq = 0;
+  private progressSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingScrollRestore = false;
 
   readonly scrollReaderEl = viewChild<ElementRef<HTMLDivElement>>('scrollReader');
+
+  /** Desktop layout renders one fixed-height page per viewport → safe to virtualize the DOM */
+  readonly isDesktop = signal(false);
+  /** Height of one page slot in the desktop reader (px), kept in sync via ResizeObserver */
+  readonly viewportHeight = signal(0);
+  readonly pageFrames = computed<PageFrame[]>(() => {
+    const total = this.pages().length;
+    const vh = this.viewportHeight();
+    if (total === 0 || vh <= 0) return [];
+    const idx = Math.max(0, Math.min(this.currentPageIndex(), total - 1));
+    const start = Math.max(0, idx - AppComponent.VIEWPORT_BUFFER);
+    const end = Math.min(total, idx + AppComponent.VIEWPORT_BUFFER + 1);
+    const all = this.pages();
+    const frames: PageFrame[] = new Array(end - start);
+    for (let i = start; i < end; i++) {
+      frames[i - start] = { index: i, url: all[i], offset: i * vh };
+    }
+    return frames;
+  });
 
   readonly updateService = inject(UpdateService);
 
@@ -60,10 +85,34 @@ export class AppComponent {
     this.progressMap.set(storage.loadProgressMap());
     this.restoreFromUrl();
 
+    // Keep the desktop/mobile split in sync with the CSS breakpoint
+    const mq = window.matchMedia('(min-width: 641px)');
+    this.isDesktop.set(mq.matches);
+    mq.addEventListener('change', (e) => this.isDesktop.set(e.matches));
+
+    // Restore scroll position after the browser has rendered the loaded pages
+    afterNextRender(() => {
+      if (this.pendingScrollRestore) {
+        this.pendingScrollRestore = false;
+        this.restoreScrollPosition();
+      }
+    });
+
     // Non-passive wheel listener: one page per scroll tick, Ctrl+scroll to zoom
     effect((onCleanup) => {
       const el = this.scrollReaderEl()?.nativeElement;
       if (!el) return;
+
+      // Track the one-viewport page slot height (only meaningful on the desktop reader).
+      // Read synchronously so the virtualized spacer has a height before the first paint.
+      const syncVh = el.clientHeight;
+      if (syncVh > 0 && syncVh !== this.viewportHeight()) this.viewportHeight.set(syncVh);
+      const ro = new ResizeObserver(() => {
+        const vh = el.clientHeight;
+        if (vh > 0 && vh !== this.viewportHeight()) this.viewportHeight.set(vh);
+      });
+      ro.observe(el);
+
       const handler = (e: WheelEvent) => {
         e.preventDefault();
         if (e.ctrlKey) {
@@ -76,7 +125,10 @@ export class AppComponent {
         setTimeout(() => { this.isScrolling = false; }, 400);
       };
       el.addEventListener('wheel', handler, { passive: false });
-      onCleanup(() => el.removeEventListener('wheel', handler));
+      onCleanup(() => {
+        ro.disconnect();
+        el.removeEventListener('wheel', handler);
+      });
     });
   }
 
@@ -94,20 +146,27 @@ export class AppComponent {
   fetchDraftChapters(): void {
     const comicId = this.newComicId.trim();
     if (!comicId) return;
+    const seq = ++this.draftRequestSeq;
     this.chapterError.set('');
     this.providerService.getChapters(comicId).subscribe({
       next: (res) => {
+        if (seq !== this.draftRequestSeq) return; // stale response
         this.draftChapters.set(res.chapters);
         if (res.chapters.length > 0) this.newChapter = res.chapters[0].id;
       },
       error: (err) => {
+        if (seq !== this.draftRequestSeq) return;
         this.draftChapters.set([]);
         this.chapterError.set(err?.error ?? '章節載入失敗');
       },
     });
     this.providerService.getMeta(comicId).subscribe({
-      next: (meta) => this.draftComicTitle.set(meta.title?.trim() || ''),
-      error: () => this.draftComicTitle.set(''),
+      next: (meta) => {
+        if (seq === this.draftRequestSeq) this.draftComicTitle.set(meta.title?.trim() || '');
+      },
+      error: () => {
+        if (seq === this.draftRequestSeq) this.draftComicTitle.set('');
+      },
     });
   }
 
@@ -194,17 +253,33 @@ export class AppComponent {
 
   onScrollReaderScroll(event: Event): void {
     const el = event.target as HTMLElement;
-    const idx = Math.round(el.scrollTop / el.clientHeight);
+    if (el.clientHeight <= 0) return;
+    const total = this.pages().length;
+    const idx = Math.max(0, Math.min(total - 1, Math.round(el.scrollTop / el.clientHeight)));
     if (idx !== this.currentPageIndex()) {
       this.currentPageIndex.set(idx);
-      this.saveProgress();
+      this.scheduleProgressSave();
     }
   }
 
   scrollToPageIndex(idx: number): void {
+    const el = this.scrollReaderEl()?.nativeElement;
+    if (!el) return;
     const clamped = Math.max(0, Math.min(idx, this.pages().length - 1));
-    this.currentPageIndex.set(clamped);
-    this.scrollReaderEl()?.nativeElement.scrollTo({ top: clamped * this.scrollReaderEl()!.nativeElement.clientHeight, behavior: 'smooth' });
+    if (clamped !== this.currentPageIndex()) {
+      this.currentPageIndex.set(clamped);
+      this.scheduleProgressSave();
+    }
+    // Instant jump: smooth scroll fights with CSS scroll-snap and spams scroll events
+    el.scrollTo({ top: clamped * el.clientHeight, behavior: 'auto' });
+  }
+
+  private scheduleProgressSave(): void {
+    if (this.progressSaveTimer !== null) return;
+    this.progressSaveTimer = setTimeout(() => {
+      this.progressSaveTimer = null;
+      this.saveProgress();
+    }, 400);
   }
 
   private restoreFromUrl(): void {
@@ -248,22 +323,23 @@ export class AppComponent {
   private loadPages(): void {
     const comic = this.currentComic();
     if (!comic) return;
+    const seq = ++this.pagesRequestSeq;
     this.loading.set(true);
     this.error.set('');
     this.providerService.getPages(comic.id, this.currentChapter()).subscribe({
       next: (res) => {
+        if (seq !== this.pagesRequestSeq) return; // stale response (user already switched chapter)
         this.pages.set(res.pages);
         if (this.currentPageIndex() >= this.pages().length) {
           this.currentPageIndex.set(0);
+          this.scrollReaderEl()?.nativeElement.scrollTo({ top: 0 });
         }
         this.saveProgress();
         this.loading.set(false);
-        // Restore scroll position after DOM renders the page placeholders
-        if (this.currentPageIndex() > 0) {
-          setTimeout(() => this.restoreScrollPosition());
-        }
+        this.pendingScrollRestore = this.currentPageIndex() > 0;
       },
       error: (err) => {
+        if (seq !== this.pagesRequestSeq) return;
         this.error.set(err?.error ?? '載入失敗');
         this.loading.set(false);
       },
