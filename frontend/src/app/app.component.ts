@@ -300,6 +300,15 @@ export class AppComponent {
       requestAnimationFrame(() => el.classList.add('repaint'));
       requestAnimationFrame(() => el.classList.remove('repaint'));
 
+      // Align scroll with the current page on mount. Needed when the session starts at a
+      // restored page (>0): the natural fallback renders first and consumes the one-shot
+      // restore, then the branch flips here and remounts with scrollTop=0 — which would
+      // leave the virtual window rendered below the visible area (blank reader).
+      if (syncVh > 0 && this.currentPageIndex() > 0) {
+        const target = this.currentPageIndex() * el.clientHeight;
+        if (Math.abs(el.scrollTop - target) > 1) el.scrollTop = target;
+      }
+
       const handler = (e: WheelEvent) => {
         e.preventDefault();
         if (e.ctrlKey) {
