@@ -139,12 +139,18 @@
                   <!-- Eager (no loading=lazy): the virtualized window is only ~5 pages,
                        and lazy+content-visibility can leave the first image un-triggered on some browsers -->
                   <img
-                    [src]="frame.url"
+                    [src]="imgSrc(frame.url)"
                     decoding="async"
-                    [attr.fetchpriority]="frame.index === 0 ? 'high' : 'auto'"
+                    (error)="onImgError(frame.url)"
                     [alt]="'第 ' + (frame.index + 1) + ' 頁'"
                     class="scroll-page-img"
                   />
+                  @if (imgFailed(frame.url)) {
+                    <div class="img-error-overlay">
+                      <span>圖片載入失敗</span>
+                      <button class="btn-tool" (click)="retryImage(frame.url)">重試</button>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -156,13 +162,19 @@
               <div class="scroll-page-wrap">
                 @defer (on viewport) {
                   <img
-                    [src]="url"
+                    [src]="imgSrc(url)"
                     loading="lazy"
                     decoding="async"
-                    [attr.fetchpriority]="$first ? 'high' : 'auto'"
+                    (error)="onImgError(url)"
                     [alt]="'第 ' + ($index + 1) + ' 頁'"
                     class="scroll-page-img"
                   />
+                  @if (imgFailed(url)) {
+                    <div class="img-error-overlay">
+                      <span>圖片載入失敗</span>
+                      <button class="btn-tool" (click)="retryImage(url)">重試</button>
+                    </div>
+                  }
                 } @placeholder {
                   <div class="scroll-page-placeholder"></div>
                 }

@@ -162,6 +162,37 @@ export class AppComponent {
     return frames;
   });
 
+  private readonly imgErrors = signal<Map<string, number>>(new Map());
+  private static readonly MAX_IMG_RETRIES = 4;
+
+  /** src with cache-busting query when the image is being retried */
+  imgSrc(url: string): string {
+    const n = this.imgErrors().get(url) ?? 0;
+    return n === 0 ? url : `${url}?r=${n}`;
+  }
+
+  imgFailed(url: string): boolean {
+    return (this.imgErrors().get(url) ?? 0) >= AppComponent.MAX_IMG_RETRIES;
+  }
+
+  /** called on <img> error — bumps the retry counter so [src] rebinds and re-fetches */
+  onImgError(url: string): void {
+    const attempts = (this.imgErrors().get(url) ?? 0) + 1;
+    if (attempts > AppComponent.MAX_IMG_RETRIES) return;
+    this.imgErrors.update((m) => {
+      m.set(url, attempts);
+      return new Map(m);
+    });
+  }
+
+  /** manual retry from the failure overlay — resets so the base URL is fetched again */
+  retryImage(url: string): void {
+    this.imgErrors.update((m) => {
+      m.delete(url);
+      return new Map(m);
+    });
+  }
+
   readonly updateService = inject(UpdateService);
 
   constructor(

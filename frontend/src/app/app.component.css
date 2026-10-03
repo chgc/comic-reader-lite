@@ -378,6 +378,20 @@
   transform-origin: center center;
 }
 
+/* ── Image failure overlay ──────────────────────────── */
+.img-error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #1a1a1a;
+  color: #888;
+  font-size: 13px;
+}
+
 /* ── Chapter navigation bar ─────────────────────────── */
 .chapter-nav {
   display: flex;
