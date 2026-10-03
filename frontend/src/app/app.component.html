@@ -163,24 +163,21 @@
             (scroll)="onScrollReaderScroll($event)"
           >
             @for (url of pages(); track $index) {
+              <!-- native lazy: no Angular @defer scheduling to ever fail; the wrap's aspect-ratio already boxes it -->
               <div class="scroll-page-wrap">
-                @defer (on viewport) {
-                  <img
-                    [src]="imgSrc(url)"
-                    loading="lazy"
-                    decoding="async"
-                    (error)="onImgError(url)"
-                    [alt]="'第 ' + ($index + 1) + ' 頁'"
-                    class="scroll-page-img"
-                  />
-                  @if (imgFailed(url)) {
-                    <div class="img-error-overlay">
-                      <span>圖片載入失敗</span>
-                      <button class="btn-tool" (click)="retryImage(url)">重試</button>
-                    </div>
-                  }
-                } @placeholder {
-                  <div class="scroll-page-placeholder"></div>
+                <img
+                  [src]="imgSrc(url)"
+                  loading="lazy"
+                  decoding="async"
+                  (error)="onImgError(url)"
+                  [alt]="'第 ' + ($index + 1) + ' 頁'"
+                  class="scroll-page-img"
+                />
+                @if (imgFailed(url)) {
+                  <div class="img-error-overlay">
+                    <span>圖片載入失敗</span>
+                    <button class="btn-tool" (click)="retryImage(url)">重試</button>
+                  </div>
                 }
               </div>
             }

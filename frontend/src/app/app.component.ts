@@ -174,7 +174,10 @@ export class AppComponent {
 
   onImgError(url: string): void {
     const attempts = (this.imgErrors().get(url) ?? 0) + 1;
-    if (attempts > AppComponent.MAX_IMG_RETRIES) return;
+    if (attempts > AppComponent.MAX_IMG_RETRIES) {
+      console.warn('[reader] img failed after retries:', url);
+      return;
+    }
     this.imgErrors.update((m) => {
       m.set(url, attempts);
       return new Map(m);
@@ -214,6 +217,12 @@ export class AppComponent {
       this.currentPageIndex.update((pi) => Math.min(pi, res.pages.length - 1));
       this.pendingScrollRestore = this.currentPageIndex() > 0;
       this.saveProgress();
+      // temp diagnostic: reader state when a chapter resolves
+      console.log('[reader]', JSON.stringify({
+        vh: this.viewportHeight(),
+        virtual: this.isDesktop() && this.viewportHeight() > 0,
+        pages: res.pages.length,
+      }));
     });
 
     // desktop: measure slot height on either reader (same box); wheel page-turn
