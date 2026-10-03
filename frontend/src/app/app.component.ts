@@ -226,13 +226,15 @@ export class AppComponent {
       this.saveProgress();
     });
 
-    // Non-passive wheel listener: one page per scroll tick, Ctrl+scroll to zoom
+    // Desktop reader wiring. The one-viewport slot height is measured on ANY desktop
+    // reader element (the natural-flow fallback container is the same box), which flips
+    // the branch to the virtualized reader as soon as it is available.
+    // The wheel page-turn interceptor only attaches to the VIRTUALIZED reader — the
+    // natural-flow fallback keeps native scrolling.
     effect((onCleanup) => {
       const el = this.scrollReaderEl()?.nativeElement;
-      if (!el) return;
+      if (!el || !this.isDesktop()) return;
 
-      // Track the one-viewport page slot height (only meaningful on the desktop reader).
-      // Read synchronously so the virtualized spacer has a height before the first paint.
       const syncVh = el.clientHeight;
       if (syncVh > 0 && syncVh !== this.viewportHeight()) this.viewportHeight.set(syncVh);
       const ro = new ResizeObserver(() => {
@@ -240,6 +242,11 @@ export class AppComponent {
         if (vh > 0 && vh !== this.viewportHeight()) this.viewportHeight.set(vh);
       });
       ro.observe(el);
+
+      if (!el.classList.contains('viewport-reader')) {
+        onCleanup(() => ro.disconnect());
+        return;
+      }
 
       const handler = (e: WheelEvent) => {
         e.preventDefault();

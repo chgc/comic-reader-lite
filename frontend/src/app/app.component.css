@@ -479,7 +479,10 @@
     overflow: hidden;
   }
 
-  .scroll-reader {
+  /* Desktop fallback (natural flow) when virtualization measurement is unavailable.
+     The virtualized reader gets `.viewport-reader` (same container rules apply). */
+  .scroll-reader.viewport-reader,
+  .natural-reader.desktop-fallback {
     flex: 1;
     min-height: 0;
     overflow-y: scroll;
@@ -519,7 +522,7 @@
     content-visibility: visible;
   }
 
-  .scroll-page-img {
+  .viewport-wrap .scroll-page-img {
     width: auto;
     height: auto;
     max-width: 100%;

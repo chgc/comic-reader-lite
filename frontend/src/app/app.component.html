@@ -124,7 +124,7 @@
       }
 
       @if (!loading() && pages().length > 0) {
-        @if (isDesktop()) {
+        @if (isDesktop() && viewportHeight() > 0) {
           <!-- Desktop: virtualized window — only pages near the current scroll position exist in the DOM
                (previously every page of a long chapter was rendered as a wrapper div) -->
           <div class="scroll-reader viewport-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
@@ -156,8 +156,15 @@
             </div>
           </div>
         } @else {
-          <!-- Mobile: natural flow with lazy placeholders -->
-          <div class="scroll-reader" #scrollReader [style.--zoom]="zoomLevel()" (scroll)="onScrollReaderScroll($event)">
+          <!-- Natural flow, always renders: mobile (document scroll), or desktop fallback when
+               the one-viewport slot measurement is unavailable (virtualization never blanks the page) -->
+          <div
+            class="scroll-reader natural-reader"
+            [class.desktop-fallback]="isDesktop()"
+            #scrollReader
+            [style.--zoom]="zoomLevel()"
+            (scroll)="onScrollReaderScroll($event)"
+          >
             @for (url of pages(); track $index) {
               <div class="scroll-page-wrap">
                 @defer (on viewport) {
