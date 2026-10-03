@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ComicMetaResponse } from './models';
@@ -6,8 +6,7 @@ import { ComicMetaResponse } from './models';
 @Injectable({ providedIn: 'root' })
 export class ComicProviderService {
   private readonly apiBase = '/api';
-
-  constructor(private readonly http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   getMeta(comicId: string): Observable<ComicMetaResponse> {
     const params = new HttpParams().set('provider', '8comic');

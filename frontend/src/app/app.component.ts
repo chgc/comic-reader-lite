@@ -39,6 +39,9 @@ interface DraftParams {
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  private readonly storage = inject(StorageService);
+  private readonly providerService = inject(ComicProviderService);
+
   comics = signal<Comic[]>([]);
   progressMap = signal<Record<string, ReadingProgress>>({});
 
@@ -187,12 +190,9 @@ export class AppComponent {
 
   readonly updateService = inject(UpdateService);
 
-  constructor(
-    private readonly storage: StorageService,
-    private readonly providerService: ComicProviderService,
-  ) {
-    this.comics.set(storage.loadLibrary());
-    this.progressMap.set(storage.loadProgressMap());
+  constructor() {
+    this.comics.set(this.storage.loadLibrary());
+    this.progressMap.set(this.storage.loadProgressMap());
     this.restoreFromUrl();
 
     const mq = window.matchMedia('(min-width: 641px)');
