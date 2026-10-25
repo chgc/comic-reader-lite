@@ -8,12 +8,12 @@
 
 <!-- Mobile floating button: only when no comic is open (reader header unavailable) -->
 @if (!currentComic()) {
-  <button class="panel-toggle" (click)="showPanel.set(true)" aria-label="開啟選單">☰</button>
+  <button class="panel-toggle" (click)="openPanel()" aria-label="開啟選單">☰</button>
 }
 
 <!-- Backdrop for mobile drawer -->
 @if (showPanel()) {
-  <div class="panel-backdrop" (click)="showPanel.set(false)"></div>
+  <div class="panel-backdrop" (click)="closePanel()"></div>
 }
 
 <main class="layout">
@@ -21,7 +21,7 @@
   <section class="panel" [class.open]="showPanel()">
     <div class="panel-header">
       <h1>8comic 乾淨版</h1>
-      <button class="panel-close" (click)="showPanel.set(false)" aria-label="關閉">✕</button>
+      <button class="panel-close" (click)="closePanel()" aria-label="關閉">✕</button>
     </div>
 
     <!-- Tabs -->
@@ -89,7 +89,7 @@
       <!-- Sticky top: header + chapter picker -->
       <div class="reader-top">
         <div class="reader-header">
-          <button class="btn-tool mobile-menu-btn" (click)="showPanel.set(true)" aria-label="選單">☰</button>
+          <button class="btn-tool mobile-menu-btn" (click)="openPanel()" aria-label="選單">☰</button>
           <h2 class="reader-title">{{ currentComic()!.title }} — 第 {{ currentChapter() }} 集</h2>
           <div class="reader-toolbar">
             <div class="zoom-controls">
@@ -97,7 +97,13 @@
               <button class="btn-tool zoom-label" (click)="resetZoom()" title="重設為 100%">{{ zoomLabel() }}</button>
               <button class="btn-tool zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel() >= 3.0" aria-label="放大">＋</button>
             </div>
+            <button class="btn-tool fit-btn" (click)="toggleFitMode()" [attr.aria-label]="'顯示模式：' + fitLabel()">
+              {{ fitLabel() }}
+            </button>
             <button class="btn-tool" (click)="toggleChapterPicker()">☰ 章節</button>
+            <button class="btn-tool" (click)="toggleFullscreen()" [attr.aria-label]="isFullscreen() ? '退出全螢幕' : '進入全螢幕'">
+              {{ isFullscreen() ? '還原' : '全螢幕' }}
+            </button>
           </div>
         </div>
 
@@ -161,6 +167,7 @@
           <div
             class="scroll-reader natural-reader"
             [class.desktop-fallback]="isDesktop()"
+            [class.fit-screen]="fitMode() === 'screen'"
             #scrollReader
             [style.--zoom]="zoomLevel()"
             (scroll)="onScrollReaderScroll($event)"

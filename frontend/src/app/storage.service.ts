@@ -3,9 +3,20 @@ import { Comic, ReadingProgress } from './models';
 
 const LIBRARY_KEY = 'eightcomic.library.v1';
 const PROGRESS_KEY = 'eightcomic.progress.v1';
+const FIT_MODE_KEY = 'eightcomic.fitmode.v1';
+
+export type FitMode = 'width' | 'screen';
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
+  loadFitMode(): FitMode {
+    const raw = localStorage.getItem(FIT_MODE_KEY);
+    return raw === 'screen' ? 'screen' : 'width';
+  }
+
+  saveFitMode(mode: FitMode): void {
+    localStorage.setItem(FIT_MODE_KEY, mode);
+  }
   loadLibrary(): Comic[] {
     return this.load<Comic[]>(LIBRARY_KEY, []);
   }

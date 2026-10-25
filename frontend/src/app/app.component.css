@@ -1,8 +1,11 @@
 /* ── Layout ─────────────────────────────────────────── */
 .layout {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  /* minmax(0,…): without it the 906px intrinsic width of a page image
+     inflates the column and the whole page pans sideways */
+  grid-template-columns: 360px minmax(0, 1fr);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Update banner ───────────────────────────────────── */
@@ -16,7 +19,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
   background: #1a6b3a;
   color: #fff;
   font-size: 14px;
@@ -45,6 +48,7 @@
   flex-direction: column;
   overflow-y: auto;
   max-height: 100vh;
+  max-height: 100dvh;
   position: sticky;
   top: 0;
 }
@@ -53,7 +57,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 8px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 8px;
   flex-shrink: 0;
 }
 
@@ -197,7 +201,7 @@
 .panel-toggle {
   display: none; /* shown on mobile only */
   position: fixed;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   left: 16px;
   z-index: 150;
   background: #2f72ff;
@@ -220,7 +224,9 @@
 .reader {
   display: flex;
   flex-direction: column;
+  min-width: 0; /* allow the column to be narrower than the page image */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Reader sticky top (header + picker) ────────────── */
@@ -229,6 +235,7 @@
   top: 0;
   z-index: 10;
   background: #151515;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ── Reader header ──────────────────────────────────── */
@@ -242,6 +249,10 @@
 }
 
 .mobile-menu-btn {
+  display: none; /* shown on mobile only */
+}
+
+.fit-btn {
   display: none; /* shown on mobile only */
 }
 
@@ -269,7 +280,7 @@
 
 .zoom-btn {
   padding: 6px 8px;
-  min-width: 30px;
+  min-width: 44px;
 }
 
 .zoom-label {
@@ -348,13 +359,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-width: 0;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 .scroll-page-wrap {
   position: relative;
   width: 100%;
   max-width: 800px;
+  min-width: 0; /* flex/grid min-content guard — otherwise the img sets the width */
+  /* MUST NOT shrink: the reader is a fixed-height flex column, and the default
+     flex-shrink:1 would collapse every page to a few pixels (pages "stacked") */
+  flex-shrink: 0;
   aspect-ratio: 2/3;
   margin-bottom: 4px;
   overflow: hidden;
@@ -398,7 +415,7 @@
   gap: 12px;
   justify-content: center;
   align-items: center;
-  padding: 16px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid #2e2e2e;
   margin-top: auto;
 }
@@ -413,7 +430,7 @@
 /* ── Mobile: drawer panel ───────────────────────────── */
 @media (max-width: 640px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* Panel becomes a fixed left drawer */
@@ -424,7 +441,9 @@
     width: 85vw;
     max-width: 360px;
     height: 100vh;
+    height: 100dvh;
     max-height: 100vh;
+    max-height: 100dvh;
     z-index: 200;
     transform: translateX(-100%);
     transition: transform 0.28s ease;
@@ -458,12 +477,109 @@
     display: block;
   }
 
+  .fit-btn {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* fixed app shell: header stays put, pages scroll inside the reader */
+  .reader {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .scroll-reader {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* no accidental sideways panning; keep vertical scroll + pinch */
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-x: none;
+  }
+
   .reader-title {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 13px;
+  }
+
+  /* toolbar gets its own row and scrolls horizontally, so no control is clipped */
+  .reader-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .reader-toolbar {
+    flex: 1 0 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .reader-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reader-toolbar > * {
+    flex: 0 0 auto;
+  }
+
+  .reader-toolbar .btn-tool {
+    padding: 6px 8px;
+  }
+
+  .reader-toolbar .zoom-btn {
+    min-width: 40px;
+  }
+
+  .reader-toolbar .zoom-label {
+    min-width: 44px;
   }
 
   .scroll-page-wrap {
     max-width: 100%;
+    /* let the page define its own height so it fills the width edge-to-edge
+       instead of being letterboxed inside a fixed 2/3 box */
+    aspect-ratio: auto;
+    margin-bottom: 0;
+  }
+
+  .scroll-page-img {
+    height: auto;
+  }
+
+  /* "全頁" mode: whole page contained in exactly one screenful */
+  .natural-reader.fit-screen .scroll-page-wrap {
+    flex: 0 0 100%;
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: auto;
+    /* one page on screen at a time — no height guessing */
+    content-visibility: visible;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .natural-reader.fit-screen .scroll-page-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .chapter-nav button {
@@ -476,6 +592,7 @@
 @media (min-width: 641px) {
   .reader {
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 

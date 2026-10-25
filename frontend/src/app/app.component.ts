@@ -15,7 +15,7 @@ import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ComicProviderService } from './comic-provider.service';
 import { ChapterItem, ChaptersResponse, Comic, ComicMetaResponse, PageFrame, PagesResponse, ReadingProgress } from './models';
-import { StorageService } from './storage.service';
+import { StorageService, FitMode } from './storage.service';
 import { UpdateService } from './update.service';
 
 interface DraftInfo {
@@ -120,9 +120,20 @@ export class AppComponent {
   activeTab = signal<'add' | 'history'>('history');
   showPanel = signal(false);
   showChapterPicker = signal(false);
+  readonly isFullscreen = signal(false);
 
   zoomLevel = signal(1.0);
   zoomLabel = computed(() => `${Math.round(this.zoomLevel() * 100)}%`);
+
+  /** mobile page sizing: 'width' = fill screen width (natural manga reading),
+   *  'screen' = the whole page contained in one screenful */
+  fitMode = signal<FitMode>(this.storage.loadFitMode());
+  readonly fitLabel = computed(() => (this.fitMode() === 'width' ? '滿寬' : '全頁'));
+
+  toggleFitMode(): void {
+    this.fitMode.update((m) => (m === 'width' ? 'screen' : 'width'));
+    this.storage.saveFitMode(this.fitMode());
+  }
   currentChapterIndex = computed(() => this.comicChapters().findIndex((c) => c.id === this.currentChapter()));
   hasPrevChapter = computed(() => this.currentChapterIndex() > 0);
   hasNextChapter = computed(() => {
@@ -214,6 +225,19 @@ export class AppComponent {
 
   readonly updateService = inject(UpdateService);
 
+  private readonly onFullscreenChange = (): void => {
+    this.isFullscreen.set(!!document.fullscreenElement);
+  };
+
+  private readonly onPopState = (): void => {
+    // Android hardware back: close open overlays instead of leaving the app
+    if (this.showPanel()) {
+      this.showPanel.set(false);
+    } else if (this.showChapterPicker()) {
+      this.showChapterPicker.set(false);
+    }
+  };
+
   constructor() {
     this.comics.set(this.storage.loadLibrary());
     this.progressMap.set(this.storage.loadProgressMap());
@@ -222,6 +246,9 @@ export class AppComponent {
     const mq = window.matchMedia('(min-width: 641px)');
     this.isDesktop.set(mq.matches);
     mq.addEventListener('change', (e) => this.isDesktop.set(e.matches));
+
+    document.addEventListener('fullscreenchange', this.onFullscreenChange);
+    window.addEventListener('popstate', this.onPopState);
 
     afterNextRender(() => {
       if (this.pendingScrollRestore) {
@@ -333,11 +360,35 @@ export class AppComponent {
     this.currentPageIndex.set(saved?.pageIndex ?? 0);
     this.zoomLevel.set(saved?.zoom ?? 1.0);
     this.showChapterPicker.set(false);
-    this.showPanel.set(false);
+    this.closePanel();
   }
 
   toggleChapterPicker(): void {
     this.showChapterPicker.update((v) => !v);
+  }
+
+  toggleFullscreen(): void {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+
+  openPanel(): void {
+    if (this.showPanel()) return;
+    this.showPanel.set(true);
+    if (!history.state?.panel) {
+      history.pushState({ panel: true }, '');
+    }
+  }
+
+  closePanel(): void {
+    if (!this.showPanel()) return;
+    this.showPanel.set(false);
+    if (history.state?.panel) {
+      history.back();
+    }
   }
 
   jumpToChapter(chapterId: string): void {
@@ -395,6 +446,9 @@ export class AppComponent {
   onScrollReaderScroll(event: Event): void {
     const el = event.target as HTMLElement;
     if (el.clientHeight <= 0) return;
+    // mobile "fit width": pages have natural (variable) heights, so scrollTop
+    // is not page-aligned — deriving an index here would corrupt progress
+    if (!this.isDesktop() && this.fitMode() === 'width') return;
     const total = this.pages().length;
     const idx = Math.max(0, Math.min(total - 1, Math.round(el.scrollTop / el.clientHeight)));
     if (idx !== this.currentPageIndex()) {
@@ -406,6 +460,8 @@ export class AppComponent {
   scrollToPageIndex(idx: number): void {
     const el = this.scrollReaderEl()?.nativeElement;
     if (!el) return;
+    // page-aligned scrolling only holds when one page == one viewport
+    if (!this.isDesktop() && this.fitMode() === 'width') return;
     const clamped = Math.max(0, Math.min(idx, this.pages().length - 1));
     if (clamped !== this.currentPageIndex()) {
       this.currentPageIndex.set(clamped);
