@@ -2,6 +2,7 @@ services:
   backend:
     build:
       context: ./backend
+    restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-28080}:8080"
     environment:
@@ -14,6 +15,7 @@ services:
   frontend:
     build:
       context: ./frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-28000}:80"
     depends_on:
